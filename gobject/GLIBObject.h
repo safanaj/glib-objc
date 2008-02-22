@@ -1,7 +1,7 @@
 /*
  *  glib-objc - objective-c bindings for glib/gobject
  *
- *  Copyright (c) 2007 Brian Tarricone <bjt23@cornell.edu>
+ *  Copyright (c) 2007-2008 Brian Tarricone <bjt23@cornell.edu>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,20 +20,34 @@
 #ifndef __OBCJ_GLIB_OBJECT_H__
 #define __OBJC_GLIB_OBJECT_H__
 
-#include <Foundation/Foundation.h>
+#import <Foundation/Foundation.h>
 #include <glib-object.h>
 
 @interface GLIBObject : NSObject
 {
 @protected
-    GObject *gobject_ptr;
+    GObject *_gobject_ptr;
+@private
+    GHashTable *_closures;
+    NSMutableDictionary *_user_data;
 }
 
-/* virtual functions */
++ (id)objectWithType:(GType)type
+      withProperties:(NSDictionary *)properties;
++ (id)objectWithType:(GType)type;
 
-/* this works like GObject::constructor() and is overrideable. */
-- (id)      init:(GType)type
-  withProperties:(NSDictionary *)properties;
++ (id)newWithType:(GType)type
+   withProperties:(NSDictionary *)properties;
++ (id)newWithType:(GType)type;
+
+/* this is the designated initializer */
+- (id)initWithType:(GType)type
+    withProperties:(NSDictionary *)properties;
+- (id)initWithType:(GType)type;
+
+
+- (void)setProperties:(NSDictionary *)properties;
+- (NSDictionary *)getProperties:(NSArray *)properties;
 
 /* can we implement this in a better way?  should subclasses just override
  * set/get and chain to super for unhandled property names?
@@ -44,38 +58,22 @@
 - (void)getProperty:(guint)propertyId
               value:(GValue *)value
               pspec:(GParamSpec *)pspec;
-*/
+    */
 
-/* is this really necessary?
-- (void)dispose;
-*/
-
-/* replace with dealloc
-- (void)finalize;
-*/
-
-/* even the gobject docs say people shouldn't need to mess with this
+    /* even the gobject docs say people shouldn't need to mess with this
 - (void)dispatchPropertiesChanged:(GParamSpec **)pspecs
-*/
+    */
 
-/* normal methods */
 
-+ (id)new:(GType)type;
-+ (id)       new:(GType)type
-  withProperties:(NSDictionary *)properties;
+- (gulong)connectSignal:(NSString *)detailedSignal
+               toObject:(id)object
+           withSelector:(SEL)selector;
 
-- (void)setProperties:(NSDictionary *)properties;
-- (NSDictionary *)getProperties:(NSArray *)properties;
+- (gulong)connectSignalAfter:(NSString *)detailedSignal
+                    toObject:(id)object
+                withSelector:(SEL)selector;
 
-- (guint)connectSignal:(NSString *)detailedSignal
-              toObject:(id)object
-          withSelector:(SEL)selector;
-
-- (guint)connectSignalAfter:(NSString *)detailedSignal
-                   toObject:(id)object
-               withSelector:(SEL)selector;
-
-- (void)disconnectSignal:(guint)connectId;
+- (void)disconnectSignal:(gulong)connectId;
 
 - (void)disconnectSignal:(NSString *)detailedSignal
               fromObject:(id)object
@@ -85,6 +83,12 @@
 - (void)thawNotify;
 - (void)notify:(NSString *)propertyName;
 
+- (void)setData:(id <NSObject>)data
+         forKey:(id <NSObject>)key;
+- (id)getDataForKey:(id <NSObject>)key;
+
+
+#if 0  /* do we really want to support these? */
 - (void)weakRetain:(SEL)selector  /* - (void)weakNotify:(GLIBObject *)obj */
           onObject:(id)object;
 
@@ -93,7 +97,9 @@
 
 - (void)addWeakPointer:(gpointer *)weakPointerLocation;
 - (void)removeWeakPointer:(gpointer *)weakPointerLocation;
+#endif
 
+#if 0  /* ideally just support more NS*-ified versions */
 /* FIXME: toggle ref? */
 
 - (void)setData:(gpointer)data
@@ -112,22 +118,14 @@
 
 - (gpointer)getDataForQuark:(GQuark *)quark;
 - (gpointer)getDataForKey:(NSString *)key;
+#endif
+
++ (id)wrapGObject:(GObject *)gobject_ptr;
++ (id)wrapGBoxed:(GBoxed *)gboxed_ptr;
 
 /* stuff that people hopefully don't need so much */
 - (GObject *)gobjectPointer;
-+ (GType)gobjectType;
-
-@end
-
-
-@interface GLIBInitiallyUnowned : GLIBObject
-{
-@private
-    BOOL isFloating;
-}
-
-- (void)sink;
-- (void)retainSink;
+- (GType)gobjectType;
 
 @end
 
