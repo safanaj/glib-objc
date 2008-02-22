@@ -85,7 +85,7 @@ glib_objc_gtype_from_signature(const char *objc_signature)
 }
 
 static BOOL
-glib_objcsignatures_match(GType target_gtype,
+glib_objc_signatures_match(GType target_gtype,
                           const char *objc_signature)
 {
     GType gtype = gtype_from_signature(objc_signature);
@@ -141,7 +141,7 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
             if(G_TYPE_STRING == value_type)
                 return [NSString stringWithUTF8String:g_value_get_string(value)];
             else if(G_TYPE_STRV == value_type) {
-                gchar *strv = g_value_get_boxed(value);
+                gchar **strv = g_value_get_boxed(value);
                 NSMutableArray *array;
                 int i;
                 
@@ -166,62 +166,62 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
                                id <NSObject> nsobject,
                                BOOL gvalue_needs_init)
 {
-#define GV_SET(gtype, getter, setter) G_STMT_START{ \
+#define GV_SET(gtype, valtype, getter, setter) G_STMT_START{ \
     if(gvalue_needs_init) \
         g_value_init(gvalue, gtype); \
-    g_value_ ## setter(gvalue, [nsobject getter]); \
+    g_value_ ## setter(gvalue, [(valtype *)nsobject getter]); \
 }G_STMT_END
     
-    if(!gvalue || !nsvalue)
+    if(!gvalue || !nsobject)
         return NO;
     
-    if([nsobject isKindOfClass:(Class)NSValue]) {
-        const char *typstr = [nsvalue objCType];
+    if([nsobject isKindOfClass:[NSValue class]]) {
+        const char *typestr = [(NSValue *)nsobject objCType];
         
-        if([nsobject isKindOfClass:(Class)GLIBValue]) {
+        if([nsobject isKindOfClass:[GLIBValue class]]) {
             if(!strcmp(typestr, @encode(gint)))
-                GV_SET(G_TYPE_ENUM, intValue, set_enum);
+                GV_SET(G_TYPE_ENUM, GLIBValue, enumValue, set_enum);
             else if(!strcmp(typestr, @encode(guint)))
-                GV_SET(G_TYPE_FLAGS, unsignedIntValue, set_flags);
+                GV_SET(G_TYPE_FLAGS, GLIBValue, flagsValue, set_flags);
             else {
                 g_critical("Unhandled GLIBValue signature \"%s\"", typestr);
                 return NO;
             }
-        } else if([nsobject isKindOfClass:(Class)NSNumber]) {
+        } else if([nsobject isKindOfClass:[NSNumber class]]) {
             if(!strcmp(typestr, @encode(guchar)))
-                GV_SET(G_TYPE_UCHAR, unsignedCharValue, set_uchar);
+                GV_SET(G_TYPE_UCHAR, NSNumber, unsignedCharValue, set_uchar);
             else if(!strcmp(typestr, @encode(gchar)))
-                GV_SET(G_TYPE_CHAR, charValue, set_char);
+                GV_SET(G_TYPE_CHAR, NSNumber, charValue, set_char);
             else if(!strcmp(typestr, @encode(guint)))
-                GV_SET(G_TYPE_UINT, unsignedIntValue, set_uint);
+                GV_SET(G_TYPE_UINT, NSNumber, unsignedIntValue, set_uint);
             else if(!strcmp(typestr, @encode(gint)))
-                GV_SET(G_TYPE_INT, intValue, set_int);
+                GV_SET(G_TYPE_INT, NSNumber, intValue, set_int);
             else if(!strcmp(typestr, @encode(gulong)))
-                GV_SET(G_TYPE_ULONG, unsignedLongValue, set_ulong);
+                GV_SET(G_TYPE_ULONG, NSNumber, unsignedLongValue, set_ulong);
             else if(!strcmp(typestr, @encode(glong)))
-                GV_SET(G_TYPE_LONG, longValue, set_long);
+                GV_SET(G_TYPE_LONG, NSNumber, longValue, set_long);
             else if(!strcmp(typestr, @encode(guint64)))
-                GV_SET(G_TYPE_UINT64, unsignedLongLongValue, set_uint64);
+                GV_SET(G_TYPE_UINT64, NSNumber, unsignedLongLongValue, set_uint64);
             else if(!strcmp(typestr, @encode(gint64)))
-                GV_SET(G_TYPE_INT64, longLongValue, set_int64);
+                GV_SET(G_TYPE_INT64, NSNumber, longLongValue, set_int64);
             else if(!strcmp(typestr, @encode(gboolean)))
-                GV_SET(G_TYPE_BOOLEAN, boolValue, set_boolean);
+                GV_SET(G_TYPE_BOOLEAN, NSNumber, boolValue, set_boolean);
             else if(!strcmp(typestr, @encode(gfloat)))
-                GV_SET(G_TYPE_FLOAT, floatValue, set_float);
+                GV_SET(G_TYPE_FLOAT, NSNumber, floatValue, set_float);
             else if(!strcmp(typestr, @encode(gdouble)))
-                GV_SET(G_TYPE_DOUBLE, doubleValue, set_double);
+                GV_SET(G_TYPE_DOUBLE, NSNumber, doubleValue, set_double);
         } else if(!strcmp(typestr, @encode(gpointer)))
-            GV_SET(G_TYPE_POINTER, pointerValue, set_pointer);
+            GV_SET(G_TYPE_POINTER, NSValue, pointerValue, set_pointer);
         else {
-            g_critical("Unhandled GLIBNumber signature \"%s\"", typestr);
+            g_critical("Unhandled NSValue signature \"%s\"", typestr);
             return NO;
         }
-    } else if([nsobject isKindOfClass:(Class)NSString])
-        GV_SET(G_TYPE_STRING, UTF8String, set_string);
-    else if([nsobject isKindOfClass:(Class)NSArray]) {
+    } else if([nsobject isKindOfClass:[NSString class]])
+        GV_SET(G_TYPE_STRING, NSString, UTF8String, set_string);
+    else if([nsobject isKindOfClass:[NSArray class]]) {
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-        gchar **strv = g_new(gchar *, [nsobject count] + 1);
-        NSEnumerator *strs = [nsobject objectEnumerator];
+        gchar **strv = g_new(gchar *, [(NSArray *)nsobject count] + 1);
+        NSEnumerator *strs = [(NSArray *)nsobject objectEnumerator];
         NSString *str;
         int i = 0;
         
@@ -229,13 +229,14 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
             strv[i++] = g_strdup([str UTF8String]);
         strv[i] = NULL;
 #if 0  /* FIXME: implement a NSObject GType */
-    } else if([nsobject isKindOfClass:(Class)NSObject]) {
+    } else if([nsobject isKindOfClass:[NSObject class]]) {
         if(gvalue_needs_init)
             g_value_init(gvalue, GOBJC_TYPE_NSOBJECT);
         glib_objc_g_value_set_nsobject(gvalue, nsobject);
 #endif
     } else {
-        g_critical("Unhandled GLIBNumber signature \"%s\"", typestr);
+        g_critical("Unhandled NSObject type \"%s\"",
+                   [[nsobject description] UTF8String]);
         return NO;
     }
     
@@ -257,10 +258,10 @@ glib_objc_marshal_signal(GClosure *closure,
     int i;
     
     for(i = 0; i < n_param_values; ++i) {
-        param = nsobject_from_gvalue(param_values[i]);
+        param = glib_objc_nsobject_from_gvalue(&param_values[i]);
         if(!param) {
             g_critical("Couldn't marshal value of type \"%s\"",
-                       G_VALUE_TYPE_NAME(param_values[i]));
+                       G_VALUE_TYPE_NAME(&param_values[i]));
         }
         
         [occlosure->invocation setArgument:param atIndex:i+3];
@@ -279,7 +280,7 @@ static void
 objc_closure_finalize(gpointer data,
                       GClosure *closure)
 {
-    ObjCClosure occlosure = (ObjCClosure *)closure;
+    ObjCClosure *occlosure = (ObjCClosure *)closure;
     [occlosure->invocation release];
 }
 
@@ -317,7 +318,7 @@ objc_closure_finalize(gpointer data,
 
 - (id)initWithType:(GType)type
 {
-    return [self init:type withProperties:nil];
+    return [self initWithType:type withProperties:nil];
 }
 
 /* this is the designated initializer */
@@ -335,7 +336,7 @@ objc_closure_finalize(gpointer data,
             int i = 0;
             
             nparams = [properties count];
-            params = g_new0(nparams, sizeof(GParameter));
+            params = g_new0(GParameter, nparams);
             
             propNames = [[properties allKeys] objectEnumerator];
             while((propName = [propNames nextObject])) {
@@ -424,7 +425,7 @@ objc_closure_finalize(gpointer data,
     NSEnumerator *pNames = [propNames objectEnumerator];
     NSString *propName;
     
-    while((propName = [propNames nextObject])) {
+    while((propName = [pNames nextObject])) {
         GValue value = { 0, };
         id <NSObject> nsobject;
         
@@ -467,7 +468,7 @@ objc_closure_finalize(gpointer data,
     g_return_val_if_fail(signal_id == query.signal_id, 0);
     
     /* get a method signature object for the passed selector */
-    msig = [[toObject class] instanceMethodSignatureForSelector:selector];
+    msig = [[object class] instanceMethodSignatureForSelector:selector];
     
     /* '-2' is because all methods have 'self' and '_cmd' args at the front.
      * '+1' is because we include the object itself as the first param. */
@@ -479,19 +480,20 @@ objc_closure_finalize(gpointer data,
     
     pool = [[NSAutoreleasePool alloc] init];
     
-    closure = g_closure_new_simple(sizeof(ObjCClosure), NULL);
+    closure = (ObjCClosure *)g_closure_new_simple(sizeof(ObjCClosure), NULL);
     
     closure->invocation = [[NSInvocation invocationWithMethodSignature:msig] retain];
-    [closure->invocation setTarget:toObject];
+    [closure->invocation setTarget:object];
     [closure->invocation setSelector:selector];
     [closure->invocation setArgument:self atIndex:2];
     
-    g_closure_set_marshal(closure, glib_objc_marshal_signal);
-    g_closure_add_finalize_notifier(closure, NULL, objc_closure_finalize);
+    g_closure_set_marshal((GClosure *)closure, glib_objc_marshal_signal);
+    g_closure_add_finalize_notifier((GClosure *)closure, NULL,
+                                    objc_closure_finalize);
     
     connect_id = g_signal_connect_closure(_gobject_ptr,
                                           [detailedSignal UTF8String],
-                                          closure, after);
+                                          (GClosure *)closure, after);
     g_hash_table_replace(_closures, GUINT_TO_POINTER(connect_id), closure);
     
     [pool release];
@@ -526,7 +528,7 @@ objc_closure_finalize(gpointer data,
     if(!occlosure)
         return;
     
-    g_signal_handler_disconnect(connectID, _gobject_ptr);
+    g_signal_handler_disconnect(_gobject_ptr, connectID);
     g_hash_table_remove(_closures, GUINT_TO_POINTER(connectID));
 }
 
@@ -575,7 +577,7 @@ disconnect_signals_ht_foreach(gpointer key,
 
 - (id)getDataForKey:(id <NSObject>)key
 {
-    return [_user_data getObjectForKey:key];
+    return [_user_data objectForKey:key];
 }
 
 #if 0
@@ -638,9 +640,15 @@ disconnect_signals_ht_foreach(gpointer key,
     if((obj = g_object_get_qdata(gobject_ptr, GLIB_OBJC_OBJECT_QUARK)))
        return obj;
     
+    /* FIXME: create new wrapper */
+    return nil;
 }
 
-+ (id)wrapGBoxed:(GBoxed *)gboxed_ptr;
++ (id)wrapGBoxed:(gpointer)gboxed_ptr
+{
+    /* FIXME: implement boxed wrapper */
+    return nil;
+}
 
 
 /* stuff that people hopefully don't need so much */

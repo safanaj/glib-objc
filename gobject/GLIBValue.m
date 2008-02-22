@@ -17,6 +17,12 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <glib.h>
+
 #import "GLIBValue.h"
 
 enum
@@ -60,7 +66,7 @@ enum
 - (int)enumValue
 {
     if(_valueType != VALUE_TYPE_ENUM)
-        reuturn 0;
+        return 0;
     return _enumValue;
 }
 

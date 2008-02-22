@@ -12,6 +12,9 @@ libgobject_objc_2_0_la_CFLAGS = \
 
 libgobject_objc_2_0_la_OBJCFLAGS = $(libgobject_objc_2_0_la_CFLAGS)
 
+libgobject_objc_2_0_la_LDFLAGS = \
+	-version-info $(LIBGOBJECT_VERINFO)
+
 libgobject_objc_2_0_la_LIBS = \
 	$(GOBJECT_LIBS) \
 	-Wl,-framework,Foundation

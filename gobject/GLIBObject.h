@@ -121,7 +121,7 @@
 #endif
 
 + (id)wrapGObject:(GObject *)gobject_ptr;
-+ (id)wrapGBoxed:(GBoxed *)gboxed_ptr;
++ (id)wrapGBoxed:(gpointer)gboxed_ptr;
 
 /* stuff that people hopefully don't need so much */
 - (GObject *)gobjectPointer;

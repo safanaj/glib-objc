@@ -25,15 +25,20 @@
 @interface GLIBValue : NSValue
 {
 @private
+    unsigned int _valueType;
+    
     int _enumValue;
     unsigned int _flagsValue;
 }
 
-+ (id)valueWithEnum:(unsigned int)enumValue;
-+ (id)valueWithFlags:(int)flagsValue;
++ (id)valueWithEnum:(int)enumValue;
++ (id)valueWithFlags:(unsigned int)flagsValue;
 
-- (id)initWithEnum:(unsigned int)enumValue;
-- (id)initWithFlags:(int)flagsValue;
+- (id)initWithEnum:(int)enumValue;
+- (id)initWithFlags:(unsigned int)flagsValue;
+
+- (int)enumValue;
+- (unsigned int)flagsValue;
 
 @end
 
