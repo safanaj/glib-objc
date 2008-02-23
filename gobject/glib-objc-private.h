@@ -22,9 +22,19 @@
 
 #include <glib.h>
 
+#if defined(__NetBSD__) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
+#define __DBG_FUNC__    __func__
+#elif defined(__GNUC__) && __GNUC__ >= 3
+#define __DBG_FUNC__    __FUNCTION__
+#elif defined(__SVR4) && defined(__sun)
+#define __DBG_FUNC__    __func__
+#else
+#define __DBG_FUNC__    "??"
+#endif
+
 #define _goc_return_if_fail(expr) G_STMT_START{ \
     if(!(expr)) { \
-        g_warning("%s(): assertion failed: %s", G_GNUC_FUNCTION, \
+        g_warning("%s(): assertion failed: %s", __DBG_FUNC__, \
                   G_STRINGIFY(expr)); \
         return; \
     } \
@@ -32,19 +42,19 @@
 
 #define _goc_return_val_if_fail(expr, val) G_STMT_START{ \
     if(!(expr)) { \
-        g_warning("%s(): assertion failed: %s", G_GNUC_FUNCTION, \
+        g_warning("%s(): assertion failed: %s", __DBG_FUNC__, \
                   G_STRINGIFY(expr)); \
         return (val); \
     } \
 }G_STMT_END
 
 #define _goc_return_if_reached(msg) G_STMT_START{ \
-    g_warning("%s(): %s", G_GNUC_FUNCTION, msg); \
+    g_warning("%s(): %s", __DBG_FUNC__, msg); \
     return; \
 } G_STMT_END
 
 #define _goc_return_val_if_reached(msg, val) G_STMT_START{ \
-    g_warning("%s(): %s", G_GNUC_FUNCTION, msg); \
+    g_warning("%s(): %s", __DBG_FUNC__, msg); \
     return (val); \
 } G_STMT_END
 
