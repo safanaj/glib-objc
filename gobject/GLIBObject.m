@@ -31,11 +31,36 @@ typedef struct
 {
     GClosure closure;
     
+    guint signal_id;
+    GQuark detail;
+    BOOL after;
     NSInvocation *invocation;
 } ObjCClosure;
 
+typedef enum
+{
+    HANDLER_MATCH_ID       = (1 << 0),
+    HANDLER_MATCH_DETAIL   = (1 << 1),
+    HANDLER_MATCH_AFTER    = (1 << 2),
+    HANDLER_MATCH_OBJECT   = (1 << 3),
+    HANDLER_MATCH_SELECTOR = (1 << 4),
+} HandlerMatchMask;
+
+typedef struct
+{
+    GObject *gobject_ptr;
+    HandlerMatchMask mask;
+    
+    guint signal_id;
+    GQuark detail;
+    BOOL after;
+    id object;
+    SEL selector;
+} HandlersMatchData;
+
 
 static GQuark __glib_objc_object_quark = 0;
+
 
 static GQuark
 glib_objc_object_quark_get()
@@ -46,7 +71,7 @@ glib_objc_object_quark_get()
     return __glib_objc_object_quark;
 }
 
-
+#if 0
 static GType
 glib_objc_gtype_from_signature(const char *objc_signature)
 {
@@ -88,7 +113,7 @@ static BOOL
 glib_objc_signatures_match(GType target_gtype,
                           const char *objc_signature)
 {
-    GType gtype = gtype_from_signature(objc_signature);
+    GType gtype = glib_objc_gtype_from_signature(objc_signature);
     
     target_gtype &= ~(G_SIGNAL_TYPE_STATIC_SCOPE);
     
@@ -100,6 +125,7 @@ glib_objc_signatures_match(GType target_gtype,
     
     return NO;
 }
+#endif
 
 /* returns an autoreleased object */
 static id <NSObject>
@@ -228,6 +254,7 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
         while((str = [strs nextObject]))
             strv[i++] = g_strdup([str UTF8String]);
         strv[i] = NULL;
+        [pool release];
 #if 0  /* FIXME: implement a NSObject GType */
     } else if([nsobject isKindOfClass:[NSObject class]]) {
         if(gvalue_needs_init)
@@ -446,17 +473,17 @@ objc_closure_finalize(gpointer data,
            connectAfter:(BOOL)after
 {
     NSAutoreleasePool *pool;
-    guint signal_id;
+    guint signal_id = 0;
+    GQuark detail = 0;
     NSMethodSignature *msig;
     GSignalQuery query;
-    int i;
     ObjCClosure *closure;
     gulong connect_id = 0;
     
-    signal_id = g_signal_lookup([detailedSignal UTF8String],
-                                G_OBJECT_TYPE(_gobject_ptr));
-    
-    if(!signal_id) {
+    if(!g_signal_parse_name([detailedSignal UTF8String],
+                            G_OBJECT_TYPE(_gobject_ptr),
+                            &signal_id, &detail, TRUE))
+    {
         g_warning("No signal of name \"%s\" for type \"%s\"",
                   [detailedSignal UTF8String],
                   G_OBJECT_TYPE_NAME(_gobject_ptr));
@@ -482,6 +509,9 @@ objc_closure_finalize(gpointer data,
     
     closure = (ObjCClosure *)g_closure_new_simple(sizeof(ObjCClosure), NULL);
     
+    closure->signal_id = signal_id;
+    closure->detail = detail;
+    closure->after = after;
     closure->invocation = [[NSInvocation invocationWithMethodSignature:msig] retain];
     [closure->invocation setTarget:object];
     [closure->invocation setSelector:selector];
@@ -539,16 +569,55 @@ disconnect_signals_ht_foreach(gpointer key,
 {
     gulong connectID = GPOINTER_TO_UINT(key);
     ObjCClosure *occlosure = value;
-    GObject *gobj = data;
+    HandlersMatchData *mdata = data;
     
+    if(mdata->mask & HANDLER_MATCH_ID && occlosure->signal_id != mdata->signal_id)
+        return FALSE;
+    if(mdata->mask & HANDLER_MATCH_DETAIL && occlosure->detail != mdata->detail)
+        return FALSE;
+    if(mdata->mask & HANDLER_MATCH_AFTER && occlosure->after != mdata->after)
+        return FALSE;
+    if(mdata->mask & HANDLER_MATCH_OBJECT && [occlosure->invocation target] != mdata->object)
+        return FALSE;
+    if(mdata->mask & HANDLER_MATCH_SELECTOR && [occlosure->invocation selector] != mdata->selector)
+        return FALSE;
+    
+    g_signal_handler_disconnect(mdata->gobject_ptr, connectID);
+    
+    return TRUE;
 }
 
 - (void)disconnectSignal:(NSString *)detailedSignal
               fromObject:(id)object
             withSelector:(SEL)selector
 {
+    guint signal_id = 0;
+    GQuark detail = 0;
+    HandlersMatchData mdata;
+    
+    if(!g_signal_parse_name([detailedSignal UTF8String],
+                            G_OBJECT_TYPE(_gobject_ptr),
+                            &signal_id, &detail, TRUE))
+    {
+        g_warning("Unable to parse detailed signal \"%s\"",
+                  [detailedSignal UTF8String]);
+        return;
+    }
+    
+    mdata.gobject_ptr = _gobject_ptr;
+    mdata.signal_id = signal_id;
+    mdata.detail = detail;
+    mdata.object = object;
+    mdata.selector = selector;
+    
+    mdata.mask = (HANDLER_MATCH_ID | HANDLER_MATCH_DETAIL);
+    if(object)
+        mdata.mask |= HANDLER_MATCH_OBJECT;
+    if(selector)
+        mdata.mask |= HANDLER_MATCH_SELECTOR;
+    
     g_hash_table_foreach_remove(_closures, disconnect_signals_ht_foreach,
-                                _gobject_ptr);
+                                &mdata);
 }
 
 - (void)freezeNotify
