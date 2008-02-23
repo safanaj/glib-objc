@@ -521,9 +521,9 @@ objc_closure_finalize(gpointer data,
     g_closure_add_finalize_notifier((GClosure *)closure, NULL,
                                     objc_closure_finalize);
     
-    connect_id = g_signal_connect_closure(_gobject_ptr,
-                                          [detailedSignal UTF8String],
-                                          (GClosure *)closure, after);
+    connect_id = g_signal_connect_closure_by_id(_gobject_ptr, signal_id,
+                                                detail, (GClosure *)closure,
+                                                after);
     g_hash_table_replace(_closures, GUINT_TO_POINTER(connect_id), closure);
     
     [pool release];
