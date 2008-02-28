@@ -21,7 +21,7 @@ if test -d .git; then
 else
     REVISION=UNKNOWN
 fi
-sed "s/@REVISION/$REVISION/g" <configure.ac.in >>configure.ac
+sed "s/@REVISION@/$REVISION/g" <configure.ac.in >>configure.ac
 
 run_first_found "glibtoolize libtoolize" "--force --copy --automake" &&
 run_first_found "aclocal-1.10 aclocal-1.9 aclocal-1.8 aclocal-1.7 aclocal" &&
