@@ -40,11 +40,21 @@
    withProperties:(NSDictionary *)properties;
 + (id)newWithType:(GType)type;
 
-/* this is the designated initializer */
+/* this is the designated initializer, and should be called/overridden by
+ * subclasses that wrap a C GType */
 - (id)initWithType:(GType)type
     withProperties:(NSDictionary *)properties;
 - (id)initWithType:(GType)type;
 
+/* these two methods shouldn't be overridden by a subclass, but should be
+ * chained to in the designated initializer of classes that are subclasses
+ * of Objective C types (that is, call this to create a new derived type
+ * in ObjC) */
+- (id)initCustomType:(NSString *)customTypeName
+            forClass:(Class)aClass
+      withProperties:(NSDictionary *)properties;
+- (id)initCustomType:(NSString *)customTypeName
+            forClass:(Class)aClass;
 
 - (void)setProperties:(NSDictionary *)properties;
 - (NSDictionary *)getProperties:(NSArray *)properties;
@@ -125,7 +135,9 @@
 
 /* stuff that people hopefully don't need so much */
 - (GObject *)gobjectPointer;
-- (GType)gobjectType;
+
+/* should only be overridden by classes that wrap C GObject types */
++ (GType)gobjectType;
 
 @end
 

@@ -378,6 +378,9 @@ objc_closure_finalize(gpointer data,
         _gobject_ptr = g_object_newv(type, nparams, params);
         g_free(params);
         
+        /* this is sorta questionable.  in objc-land, we use autoreleased
+         * objects, which can serve a similar purpose to gobject's floating
+         * reference.  if you want ownership of a GLIBObject, you should 
         if(g_object_is_floating(_gobject_ptr))
             g_object_ref_sink(_gobject_ptr);
         
@@ -389,6 +392,70 @@ objc_closure_finalize(gpointer data,
     }
     
     return self;
+}
+
+- (id)initCustomType:(NSString *)customTypeName
+            forClass:(Class)aClass
+{
+    return [self initCustomType:customTypeName
+                       forClass:aClass
+                 withProperties:nil];
+}
+
+- (id)initCustomType:(NSString *)customTypeName
+            forClass:(Class)aClass
+      withProperties:(NSDictionary *)properties
+{
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    NSString *fullTypeName;
+    GType custom_type = 0;
+    
+    _goc_return_val_if_fail(customTypeName && aClass, nil);
+    
+    fullTypeName = [@"__glib_objc__" stringByAppendingString:customTypeName];
+    
+    custom_type = g_type_from_name([fullTypeName UTF8String]);
+    
+    if(!custom_type) {
+        Class superclass;
+        GType parent_type;
+        GTypeQuery query;
+        GTypeInfo info;
+        
+        /* we'll assume that the class we want to clone doesn't have a gtype */
+        superclass = [aClass superclass];
+        
+        /* make sure the superclass ia a subclass of GLIBObject */
+        if(![superclass respondsToSelector:@selector(gobjectType)]) {
+            g_critical("-cloneCustomType: passed superclass of type %s, which " \
+                       "is not a descendent of GLIBObject",
+                       [[superclass description] UTF8String]);
+            [pool release];
+            return nil;
+        }
+        
+        /* figure out the parent GType; this way our custom type will behave
+         * properly */
+        parent_type = [superclass gobjectType];
+        if(G_TYPE_NONE == parent_type || G_TYPE_INVALID == parent_type) {
+            g_critical("-cloneCustomType: passed supperclass of type %s, which " \
+                       "has an invalid GType",
+                       [[superclass description] UTF8String]);
+            [pool release];
+            return nil;
+        }
+        
+        g_type_query(parent_type, &query);
+        memset(&info, 0, sizeof(info));
+        info.class_size = query.class_size;
+        info.instance_size = query.instance_size;
+        
+        custom_type = g_type_register_static(parent_type,
+                                             [fullTypeName UTF8String],
+                                             &info, 0);
+    }
+    
+    return [self initWithType:custom_type withProperties:properties];
 }
 
 /* due to our weird architecture, you should never create a GLIBObject that
@@ -726,9 +793,9 @@ disconnect_signals_ht_foreach(gpointer key,
     return _gobject_ptr;
 }
 
-- (GType)gobjectType
++ (GType)gobjectType
 {
-    return G_OBJECT_TYPE(_gobject_ptr);
+    return G_TYPE_OBJECT;
 }
 
 @end

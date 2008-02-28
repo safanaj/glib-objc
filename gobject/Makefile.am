@@ -8,13 +8,14 @@ libgobject_objc_2_0_la_SOURCES = \
 	glib-objc-private.h
 
 libgobject_objc_2_0_la_CFLAGS = \
-	$(GOBJECT_CFLAGS)
+	$(GOBJECT_CFLAGS) \
+	$(FOUNDATION_CFLAGS)
 
 libgobject_objc_2_0_la_OBJCFLAGS = $(libgobject_objc_2_0_la_CFLAGS)
 
 libgobject_objc_2_0_la_LDFLAGS = \
 	-version-info $(LIBGOBJECT_VERINFO)
 
-libgobject_objc_2_0_la_LIBS = \
+libgobject_objc_2_0_la_LIBADD = \
 	$(GOBJECT_LIBS) \
-	-Wl,-framework,Foundation
+	$(FOUNDATION_LIBS)

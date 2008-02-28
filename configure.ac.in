@@ -54,6 +54,68 @@ AC_MSG_RESULT([$GOBJECT_CFLAGS])
 AC_MSG_CHECKING([GOBJECT_LIBS])
 AC_MSG_RESULT([$GOBJECT_LIBS])
 
+FOUNDATION_CFLAGS=
+FOUNDATION_LIBS=
+
+AC_ARG_WITH([gnustep],
+            AC_HELP_STRING([--with-gnustep=PREFIX],
+                           [Specify the root of where GNUStep is installed]),
+            [gnustep_root=$withval])
+if test "x$gnustep_root" != "x"; then
+    FOUNDATION_CFLAGS="-I$gnustep_root/System/Library/Headers"
+    if test "x$GCC" = "xyes"; then
+        FOUNDATION_CFLAGS="$FOUNDATION_CFLAGS -fconstant-string-class=NSConstantString"
+    fi
+    FOUNDATION_LIBS="-L$gnustep_root/System/Library/Libraries -lgnustep-base"
+else
+    dnl check to see if we're on MacOS X
+    case "$host_os" in
+        macos*)
+            FOUNDATION_CFLAGS=
+            FOUNDATION_LIBS="-Wl,-framework,Foundation"
+            ;;
+        *)
+            # we should try to search more places
+            FOUNDATION_CFLAGS=
+            FOUNDATION_LIBS="-lgnustep-base"
+            ;;
+    esac
+fi
+
+dnl make sure Foundation works
+AC_MSG_CHECKING([for a working Foundation])
+AC_LANG_PUSH([Objective C])
+saved_OBJCFLAGS="$CFLAGS"
+saved_LIBS="$LIBS"
+OBJCFLAGS="$OBJCFLAGS $FOUNDATION_CFLAGS"
+LIBS="$LIBS $FOUNDATION_LIBS"
+AC_LINK_IFELSE(
+changequote(<<, >>)dnl
+<<#include <Foundation/Foundation.h>
+int main() {
+    [[[[NSAutoreleasePool alloc] init] release]];
+    return 0;
+}
+>>
+changequote([, ])dnl
+, [AC_MSG_RESULT([yes])],
+[
+AC_MSG_RESULT([no])
+echo '*** A working Foundation library was not found.  If using GNUStep, please'
+echo '*** specify the GNUStep root directory with --with-gnustep.  If compiling'
+echo '*** for MacOS X, file a bug, because this should be figured out automatically.'
+exit 1
+])
+OBJCFLAGS="$saved_OBJCFLAGS"
+LIBS="$saved_LIBS"
+AC_LANG_POP()
+AC_MSG_CHECKING([FOUNDATION_CFLAGS])
+AC_MSG_RESULT([$FOUNDATION_CFLAGS])
+AC_MSG_CHECKING([FOUNDATION_LIBS])
+AC_MSG_RESULT([$FOUNDATION_LIBS])
+AC_SUBST([FOUNDATION_CFLAGS])
+AC_SUBST([FOUNDATION_LIBS])
+
 dnl check for debugging support
 AC_ARG_ENABLE([debug],
               [AC_HELP_STRING([--enable-debug=[full|yes|no]],
