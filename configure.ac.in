@@ -69,9 +69,8 @@ if test "x$gnustep_root" != "x"; then
     FOUNDATION_LIBS="-L$gnustep_root/System/Library/Libraries -lgnustep-base"
 else
     dnl check to see if we're on MacOS X
-    changequote(,)dnl
     case "$host_os" in
-        macos* | darwin[6-9]* | darwin[1-9][0-9]*)
+        [macos* | darwin[6-9]* | darwin[1-9][0-9]*)]
             FOUNDATION_CFLAGS=
             FOUNDATION_LIBS="-Wl,-framework,Foundation"
             ;;
@@ -81,7 +80,6 @@ else
             FOUNDATION_LIBS="-lgnustep-base"
             ;;
     esac
-    changequote([, ])dnl
 fi
 
 dnl make sure Foundation works
@@ -92,14 +90,12 @@ saved_LIBS="$LIBS"
 OBJCFLAGS="$OBJCFLAGS $FOUNDATION_CFLAGS"
 LIBS="$LIBS $FOUNDATION_LIBS"
 AC_LINK_IFELSE(
-changequote(<<, >>)dnl
-<<#include <Foundation/Foundation.h>
+[#include <Foundation/Foundation.h>
 int main() {
-    [[[[NSAutoreleasePool alloc] init] release]];
+    [[[[NSAutoreleasePool alloc] init] release];]
     return 0;
 }
->>
-changequote([, ])dnl
+]
 , [AC_MSG_RESULT([yes])],
 [
 AC_MSG_RESULT([no])
