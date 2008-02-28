@@ -69,8 +69,9 @@ if test "x$gnustep_root" != "x"; then
     FOUNDATION_LIBS="-L$gnustep_root/System/Library/Libraries -lgnustep-base"
 else
     dnl check to see if we're on MacOS X
+    changequote(,)dnl
     case "$host_os" in
-        macos*)
+        macos* | darwin[6-9]* | darwin[1-9][0-9]*)
             FOUNDATION_CFLAGS=
             FOUNDATION_LIBS="-Wl,-framework,Foundation"
             ;;
@@ -80,6 +81,7 @@ else
             FOUNDATION_LIBS="-lgnustep-base"
             ;;
     esac
+    changequote([, ])dnl
 fi
 
 dnl make sure Foundation works
