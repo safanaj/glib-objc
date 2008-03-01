@@ -380,7 +380,8 @@ objc_closure_finalize(gpointer data,
         
         /* this is sorta questionable.  in objc-land, we use autoreleased
          * objects, which can serve a similar purpose to gobject's floating
-         * reference.  if you want ownership of a GLIBObject, you should 
+         * reference.  to mimic the floating reference concept, use
+         * -objectForType: and similar */
         if(g_object_is_floating(_gobject_ptr))
             g_object_ref_sink(_gobject_ptr);
         
@@ -466,21 +467,6 @@ objc_closure_finalize(gpointer data,
     return nil;
 }
 
-/* can we implement this in a better way?  should subclasses just override
- * set/get and chain to super for unhandled property names?
-- (void)setProperty:(guint)propertyId
-              value:(const GValue *)value
-              pspec:(GParamSpec *)pspec;
-
-- (void)getProperty:(guint)propertyId
-              value:(GValue *)value
-              pspec:(GParamSpec *)pspec;
-*/
-
-/* even the gobject docs say people shouldn't need to mess with this
-- (void)dispatchPropertiesChanged:(GParamSpec **)pspecs
-*/
-
 - (void)dealloc
 {
     g_hash_table_destroy(_closures);
@@ -488,6 +474,33 @@ objc_closure_finalize(gpointer data,
     [_user_data release];
     
     [super dealloc];
+}
+
+- (void)setProperty:(NSString *)propertyName
+            toValue:(id)value
+{
+    GValue val = { 0, };
+
+    if(glib_objc_gvalue_from_nsobject(&val, value, YES)) {
+        g_object_set_property(_gobject_ptr,
+                              [propertyName UTF8String],
+                              &val);
+        g_value_unset(&val);
+    }
+}
+
+- (id)getProperty:(NSString *)propertyName
+{
+    GValue value = { 0, };
+    id <NSObject> nsobject = nil;
+    
+    g_object_get_property(_gobject_ptr, [propertyName UTF8String], &value);
+    if(G_VALUE_TYPE(&value)) {
+        nsobject = glib_objc_nsobject_from_gvalue(&value);
+        g_value_unset(&value);
+    }
+    
+    return nsobject;
 }
 
 - (void)setProperties:(NSDictionary *)properties
@@ -524,9 +537,12 @@ objc_closure_finalize(gpointer data,
         id <NSObject> nsobject;
         
         g_object_get_property(_gobject_ptr, [propName UTF8String], &value);
-        nsobject = glib_objc_nsobject_from_gvalue(&value);
-        if(nsobject)
-            [properties setObject:nsobject forKey:propName];
+        if(G_VALUE_TYPE(&value)) {
+            nsobject = glib_objc_nsobject_from_gvalue(&value);
+            if(nsobject)
+                [properties setObject:nsobject forKey:propName];
+            g_value_unset(&value);
+        }
     }
     
     [pool release];

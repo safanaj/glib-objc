@@ -56,24 +56,12 @@
 - (id)initCustomType:(NSString *)customTypeName
             forClass:(Class)aClass;
 
+- (void)setProperty:(NSString *)propertyName
+            toValue:(id)value;
+- (id)getProperty:(NSString *)propertyName;
+
 - (void)setProperties:(NSDictionary *)properties;
 - (NSDictionary *)getProperties:(NSArray *)properties;
-
-/* can we implement this in a better way?  should subclasses just override
- * set/get and chain to super for unhandled property names?
-- (void)setProperty:(guint)propertyId
-              value:(const GValue *)value
-              pspec:(GParamSpec *)pspec;
-
-- (void)getProperty:(guint)propertyId
-              value:(GValue *)value
-              pspec:(GParamSpec *)pspec;
-    */
-
-    /* even the gobject docs say people shouldn't need to mess with this
-- (void)dispatchPropertiesChanged:(GParamSpec **)pspecs
-    */
-
 
 - (gulong)connectSignal:(NSString *)detailedSignal
                toObject:(id)object
