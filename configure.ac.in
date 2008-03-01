@@ -64,7 +64,7 @@ AC_ARG_WITH([gnustep],
 if test "x$gnustep_root" != "x"; then
     FOUNDATION_CFLAGS="-I$gnustep_root/System/Library/Headers"
     if test "x$GCC" = "xyes"; then
-        FOUNDATION_CFLAGS="$FOUNDATION_CFLAGS -fconstant-string-class=NSConstantString"
+        FOUNDATION_HACK_CFLAGS="-fconstant-string-class=NSConstantString"
     fi
     FOUNDATION_LIBS="-L$gnustep_root/System/Library/Libraries -lgnustep-base"
 else
@@ -112,6 +112,7 @@ AC_MSG_RESULT([$FOUNDATION_CFLAGS])
 AC_MSG_CHECKING([FOUNDATION_LIBS])
 AC_MSG_RESULT([$FOUNDATION_LIBS])
 AC_SUBST([FOUNDATION_CFLAGS])
+AC_SUBST([FOUNDATION_HACK_CFLAGS])
 AC_SUBST([FOUNDATION_LIBS])
 
 dnl check for debugging support
@@ -122,9 +123,7 @@ AC_ARG_ENABLE([debug],
                               [Include no debugging support (default)])],
               [], [enable_debug=no])
 AC_MSG_CHECKING([whether to build with debugging support])
-if test "x$enable_debug" = "xno"; then
-    AC_MSG_RESULT([no])
-else
+if test "x$enable_debug" != "xno"; then
     AC_DEFINE([DEBUG], [1], [Define if debugging support is enabled])
     if test "x$GCC" = "xyes"; then
         if test "x$enable_debug" = "xfull"; then
@@ -139,8 +138,10 @@ else
     OBJCFLAGS="$OBJCFLAGS $DEBUG_CFLAGS"
     CXXFLAGS="$CXXFLAGS $DEBUG_CFLAGS"
 fi
+AC_MSG_RESULT([$enable_debug])
 
 AC_OUTPUT([
 Makefile
 gobject/Makefile
+gobject/gobject-objc-2.0.pc
 ])

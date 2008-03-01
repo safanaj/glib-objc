@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: Glib-ObjC
+Description: Objective-C bindings for Glib/GObject
+Version: @VERSION@
+Requires: gobject-2.0
+Libs: -lgobject-objc-2.0
+Cflags: @FOUNDATION_CFLAGS@ -I${includedir}/glib-objc-2.0
