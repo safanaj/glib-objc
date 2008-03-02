@@ -118,14 +118,15 @@
 - (gpointer)getDataForKey:(NSString *)key;
 #endif
 
-+ (id)wrapGObject:(GObject *)gobject_ptr;
-+ (id)wrapGBoxed:(gpointer)gboxed_ptr;
-
-/* stuff that people hopefully don't need so much */
+/* method that people hopefully don't need, ever */
 - (GObject *)gobjectPointer;
 
 /* should only be overridden by classes that wrap C GObject types */
 + (GType)gobjectType;
+
+/* should be called in +initialize in any C GObject wrapper class */
++ (void)registerDerivedType:(Class)objcClass
+                   forGType:(GType)gType;
 
 @end
 

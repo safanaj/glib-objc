@@ -60,6 +60,8 @@ typedef struct
 
 
 static GQuark __glib_objc_object_quark = 0;
+static GQuark __glib_objc_type_map_quark = 0;
+static GHashTable *__objc_class_map = NULL;
 
 
 static GQuark
@@ -69,6 +71,15 @@ glib_objc_object_quark_get()
         __glib_objc_object_quark = g_quark_from_static_string("--glib-objc-object");
     
     return __glib_objc_object_quark;
+}
+
+static GQuark
+glib_objc_type_map_quark_get()
+{
+    if(!__glib_objc_type_map_quark)
+        __glib_objc_type_map_quark = g_quark_from_static_string("--glib-objc-type-map");
+    
+    return __glib_objc_type_map_quark;
 }
 
 #if 0
@@ -176,10 +187,14 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
                 for(i = 0; strv[i]; ++i)
                     [array addObject:[NSString stringWithUTF8String:strv[i]]];
                 return array;
-            } else if(G_TYPE_OBJECT == value_type)
+            }
+#if 0
+        else if(G_TYPE_OBJECT == value_type)
+            /* FIXME: -initCustomType: with a separate GLIBBoxed wrapper */
                 return [GLIBObject wrapGObject:g_value_get_object(value)];
             else if(G_TYPE_BOXED == value_type)
                 return [GLIBObject wrapGBoxed:g_value_get_boxed(value)];
+#endif
             else if(G_TYPE_POINTER == value_type)
                 return [NSValue valueWithPointer:g_value_get_pointer(value)];
             
@@ -317,6 +332,8 @@ objc_closure_finalize(gpointer data,
 + (void)initialize
 {
     g_type_init();
+    
+    __objc_class_map = g_hash_table_new(g_direct_hash, g_direct_equal);
 }
 
 
@@ -785,7 +802,7 @@ disconnect_signals_ht_foreach(gpointer key,
 
 #endif
 
-+ (id)wrapGObject:(GObject *)gobject_ptr
++ (id)objectWithGObject:(GObject *)gobject_ptr
 {
     id obj = nil;
     
@@ -796,14 +813,7 @@ disconnect_signals_ht_foreach(gpointer key,
     return nil;
 }
 
-+ (id)wrapGBoxed:(gpointer)gboxed_ptr
-{
-    /* FIXME: implement boxed wrapper */
-    return nil;
-}
-
-
-/* stuff that people hopefully don't need so much */
+/* ideally never necessary. */
 - (GObject *)gobjectPointer
 {
     return _gobject_ptr;
@@ -812,6 +822,29 @@ disconnect_signals_ht_foreach(gpointer key,
 + (GType)gobjectType
 {
     return G_TYPE_OBJECT;
+}
+
++ (void)registerDerivedType:(Class)objcClass
+                   forGType:(GType)gType
+{
+    Class curClass = g_type_get_qdata(gType, glib_objc_type_map_quark_get());
+    GType curType = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, objcClass));
+    
+    _goc_return_if_fail(objcClass && gType && gType != G_TYPE_NONE
+                        && gType != G_TYPE_INVALID);
+    
+    if(curClass == objcClass || curType == gType)
+        return;
+    
+    if(curClass || curType) {
+        g_critical("glib-objc: attempt to register GType \"%s\", which is " \
+                   "already bound to class \"%s\"", g_type_name(gType),
+                   [[objcClass description] UTF8String]);
+        return;
+    }
+    
+    g_type_set_qdata(gType, glib_objc_type_map_quark_get(), objcClass);
+    g_hash_table_insert(__objc_class_map, objcClass, GUINT_TO_POINTER(gType));
 }
 
 @end
