@@ -305,6 +305,7 @@ glib_objc_marshal_signal(GClosure *closure,
                          gpointer invocation_hint,
                          gpointer marshal_data)
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     ObjCClosure *occlosure = (ObjCClosure *)closure;
     id param;
     int i;
@@ -326,6 +327,8 @@ glib_objc_marshal_signal(GClosure *closure,
         [occlosure->invocation getReturnValue:(void *)&ret];
         glib_objc_gvalue_from_nsobject(return_value, ret, FALSE);
     }
+    
+    [pool release];
 }
 
 static void
@@ -497,13 +500,6 @@ objc_closure_finalize(gpointer data,
     return [self initWithProperties:nil];
 }
 
-
-- (id)initCustomType:(NSString *)customTypeName
-{
-    return [self initCustomType:customTypeName
-                 withProperties:nil];
-}
-
 - (id)initCustomType:(NSString *)customTypeName
       withProperties:(NSDictionary *)properties
 {
@@ -561,6 +557,12 @@ objc_closure_finalize(gpointer data,
     }
     
     return [self initWithProperties:properties];
+}
+
+- (id)initCustomType:(NSString *)customTypeName
+{
+    return [self initCustomType:customTypeName
+                 withProperties:nil];
 }
 
 - (void)dealloc
