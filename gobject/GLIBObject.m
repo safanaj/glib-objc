@@ -190,11 +190,8 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
                 return array;
             } else if(G_TYPE_OBJECT == value_type)
                 return [GLIBObject glibObjectWithGObject:g_value_get_object(value)];
-#if 0
-            /* FIXME: how should we handle boxed types? */
             else if(G_TYPE_BOXED == value_type)
-                return [GLIBObject wrapGBoxed:g_value_get_boxed(value)];
-#endif
+                return [GLIBValue valueWithBoxed:g_value_get_boxed(value)];
             else if(G_TYPE_POINTER == value_type)
                 return [NSValue valueWithPointer:g_value_get_pointer(value)];
             
@@ -224,6 +221,8 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
                 GV_SET(G_TYPE_ENUM, GLIBValue, enumValue, set_enum);
             else if(!strcmp(typestr, @encode(guint)))
                 GV_SET(G_TYPE_FLAGS, GLIBValue, flagsValue, set_flags);
+            else if(!strcmp(typestr, @encode(gpointer)))
+                GV_SET(G_TYPE_BOXED, GLIBValue, boxedValue, set_boxed);
             else {
                 g_critical("Unhandled GLIBValue signature \"%s\"", typestr);
                 return NO;

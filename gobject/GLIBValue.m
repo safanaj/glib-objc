@@ -27,8 +27,10 @@
 
 enum
 {
-    VALUE_TYPE_ENUM = 1,
+    VALUE_TYPE_INVALID = 0,
+    VALUE_TYPE_ENUM,
     VALUE_TYPE_FLAGS,
+    VALUE_TYPE_BOXED,
 };
 
 @implementation GLIBValue
@@ -41,6 +43,11 @@ enum
 + (id)valueWithFlags:(unsigned int)flagsValue
 {
     return [[[GLIBValue alloc] initWithFlags:flagsValue] autorelease];
+}
+
++ (id)valueWithBoxed:(gpointer)boxedValue
+{
+    return [[[GLIBValue alloc] initWithBoxed:boxedValue] autorelease];
 }
 
 - (id)initWithEnum:(int)enumValue
@@ -63,6 +70,24 @@ enum
     return self;
 }
 
+- (id)initWithBoxed:(gpointer)boxedValue
+{
+    if((self = [super init])) {
+        _valueType = VALUE_TYPE_BOXED;
+        _boxedValue = boxedValue;
+    }
+    
+    return self;
+}
+
+- (id)init
+{
+    if((self = [super init]))
+        _valueType = VALUE_TYPE_INVALID;
+    
+    return self;
+}
+
 - (int)enumValue
 {
     if(_valueType != VALUE_TYPE_ENUM)
@@ -77,6 +102,13 @@ enum
     return _flagsValue;
 }
 
+- (gpointer)boxedValue
+{
+    if(_valueType != VALUE_TYPE_BOXED)
+        return nil;
+    return _boxedValue;
+}
+
 - (const char *)objCType
 {
     switch(_valueType) {
@@ -84,9 +116,11 @@ enum
             return @encode(gint);
         case VALUE_TYPE_FLAGS:
             return @encode(guint);
+        case VALUE_TYPE_BOXED:
+            return @encode(gpointer);
     }
     
-    return "";
+    return [super objCType];
 }
 
 @end

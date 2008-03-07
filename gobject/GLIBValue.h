@@ -29,16 +29,20 @@
     
     int _enumValue;
     unsigned int _flagsValue;
+    gpointer _boxedValue;
 }
 
 + (id)valueWithEnum:(int)enumValue;
 + (id)valueWithFlags:(unsigned int)flagsValue;
++ (id)valueWithBoxed:(gpointer)boxedValue;
 
 - (id)initWithEnum:(int)enumValue;
 - (id)initWithFlags:(unsigned int)flagsValue;
+- (id)initWithBoxed:(gpointer)boxedValue;
 
 - (int)enumValue;
 - (unsigned int)flagsValue;
+- (gpointer)boxedValue;
 
 @end
 
