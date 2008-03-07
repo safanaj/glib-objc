@@ -188,18 +188,18 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
                 for(i = 0; strv[i]; ++i)
                     [array addObject:[NSString stringWithUTF8String:strv[i]]];
                 return array;
-            }
+            } else if(G_TYPE_OBJECT == value_type)
+                return [GLIBObject objectWithGObject:g_value_get_object(value)];
 #if 0
-        else if(G_TYPE_OBJECT == value_type)
-            /* FIXME: -initCustomType: with a separate GLIBBoxed wrapper */
-                return [GLIBObject wrapGObject:g_value_get_object(value)];
+            /* FIXME: how should we handle boxed types? */
             else if(G_TYPE_BOXED == value_type)
                 return [GLIBObject wrapGBoxed:g_value_get_boxed(value)];
 #endif
             else if(G_TYPE_POINTER == value_type)
                 return [NSValue valueWithPointer:g_value_get_pointer(value)];
             
-            _goc_return_val_if_reached("Unhandled value type", nil);
+            g_critical("Unhandled GValue type \"%s\"", G_VALUE_TYPE_NAME(value));
+            return nil;
     }
 }
 
@@ -214,8 +214,7 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
     g_value_ ## setter(gvalue, [(valtype *)nsobject getter]); \
 }G_STMT_END
     
-    if(!gvalue || !nsobject)
-        return NO;
+    _goc_return_val_if_fail(gvalue && nsobject, NO);
     
     if([nsobject isKindOfClass:[NSValue class]]) {
         const char *typestr = [(NSValue *)nsobject objCType];
@@ -234,6 +233,12 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
                 GV_SET(G_TYPE_UCHAR, NSNumber, unsignedCharValue, set_uchar);
             else if(!strcmp(typestr, @encode(gchar)))
                 GV_SET(G_TYPE_CHAR, NSNumber, charValue, set_char);
+            /* FIXME: for now just store shorts in a 32b int.  converting
+             * back will give unexpected results, though */
+            else if(!strcmp(typestr, @encode(guint16)))
+                GV_SET(G_TYPE_UINT, NSNumber, unsignedShortValue, set_uint);
+            else if(!strcmp(typestr, @encode(gint16)))
+                GV_SET(G_TYPE_INT, NSNumber, shortValue, set_int);
             else if(!strcmp(typestr, @encode(guint)))
                 GV_SET(G_TYPE_UINT, NSNumber, unsignedIntValue, set_uint);
             else if(!strcmp(typestr, @encode(gint)))
@@ -252,6 +257,10 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
                 GV_SET(G_TYPE_FLOAT, NSNumber, floatValue, set_float);
             else if(!strcmp(typestr, @encode(gdouble)))
                 GV_SET(G_TYPE_DOUBLE, NSNumber, doubleValue, set_double);
+            else {
+                g_critical("Unhandled NSNumber signature \"%s\"", typestr);
+                return NO;
+            }
         } else if(!strcmp(typestr, @encode(gpointer)))
             GV_SET(G_TYPE_POINTER, NSValue, pointerValue, set_pointer);
         else {
@@ -335,40 +344,71 @@ objc_closure_finalize(gpointer data,
     g_type_init();
     
     __objc_class_map = g_hash_table_new(g_direct_hash, g_direct_equal);
+    
+    [self registerWrappedGType:G_TYPE_OBJECT];
 }
 
-
-+ (id)objectWithType:(GType)type
++ (void)registerWrappedGType:(GType)aGType
 {
-    return [self objectWithType:type withProperties:nil];
+    Class aClass = [self class];
+    Class curClass = g_type_get_qdata(aGType, GLIB_OBJC_TYPE_MAP_QUARK);
+    GType curGType = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, aClass));
+    
+    _goc_return_if_fail(aClass && aGType && aGType != G_TYPE_NONE
+                        && aGType != G_TYPE_INVALID);
+    
+    if(curClass == aClass && curGType == aGType)
+        return;
+    
+    if(curClass) {
+        g_critical("glib-objc: attempt to register GType \"%s\", which is " \
+                   "already bound to class \"%s\"", g_type_name(aGType),
+                   [[curClass description] UTF8String]);
+        return;
+    }
+    
+    if(curGType) {
+        g_critical("glib-objc: attempt to register class \"%s\", which is " \
+                   "already bound to GType \"%s\"",
+                   [[aClass description] UTF8String], g_type_name(curGType));
+        return;
+    }
+    
+    g_type_set_qdata(aGType, GLIB_OBJC_TYPE_MAP_QUARK, aClass);
+    g_hash_table_insert(__objc_class_map, aClass, GUINT_TO_POINTER(aGType));
 }
 
-+ (id)objectWithType:(GType)type
-      withProperties:(NSDictionary *)properties
++ (id)objectWithGType:(GType)aGType
 {
-    return [[[self alloc] initWithType:type
-                        withProperties:properties] autorelease];
+    return [self objectWithGType:aGType withProperties:nil];
 }
 
-+ (id)newWithType:(GType)type
++ (id)objectWithGType:(GType)aGType
+       withProperties:(NSDictionary *)properties
 {
-    return [self newWithType:type withProperties:nil];
+    return [[[self alloc] initWithGType:aGType
+                         withProperties:properties] autorelease];
 }
 
-+ (id)newWithType:(GType)type
-   withProperties:(NSDictionary *)properties
++ (id)newWithGType:(GType)aGType
 {
-    return [[self alloc] initWithType:type withProperties:properties];
+    return [self newWithGType:aGType withProperties:nil];
 }
 
-- (id)initWithType:(GType)type
++ (id)newWithGType:(GType)aGType
+    withProperties:(NSDictionary *)properties
 {
-    return [self initWithType:type withProperties:nil];
+    return [[self alloc] initWithGType:aGType withProperties:properties];
+}
+
+- (id)initWithGType:(GType)aGType
+{
+    return [self initWithGType:aGType withProperties:nil];
 }
 
 /* this is the designated initializer */
-- (id)initWithType:(GType)type
-    withProperties:(NSDictionary *)properties
+- (id)initWithGType:(GType)aGType
+     withProperties:(NSDictionary *)properties
 {
     if((self = [super init])) {
         guint nparams = 0;
@@ -378,22 +418,24 @@ objc_closure_finalize(gpointer data,
             NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
             NSEnumerator *propNames;
             NSString *propName;
-            int i = 0;
+            GParameter *cur_param;
             
             nparams = [properties count];
             params = g_new0(GParameter, nparams);
             
-            propNames = [[properties allKeys] objectEnumerator];
-            while((propName = [propNames nextObject])) {
-                params[i].name = [propName UTF8String];
-                glib_objc_gvalue_from_nsobject(&params[i].value,
+            for(propNames = [[properties allKeys] objectEnumerator], cur_param = params;
+                (propName = [propNames nextObject]);
+                cur_param++)
+            {
+                cur_param->name = [propName UTF8String];
+                glib_objc_gvalue_from_nsobject(&cur_param->value,
                                                [properties objectForKey:propName],
                                                YES);
             }
             [pool release];
         }
         
-        _gobject_ptr = g_object_newv(type, nparams, params);
+        _gobject_ptr = g_object_newv(aGType, nparams, params);
         g_free(params);
         
         /* this is sorta questionable.  in objc-land, we use autoreleased
@@ -469,11 +511,13 @@ objc_closure_finalize(gpointer data,
         custom_type = g_type_register_static(parent_type,
                                              [fullTypeName UTF8String],
                                              &info, 0);
+        
+        g_type_set_qdata(custom_type, GLIB_OBJC_TYPE_MAP_QUARK, aClass);
         g_hash_table_insert(__objc_class_map, aClass,
                             GUINT_TO_POINTER(custom_type));
     }
     
-    return [self initWithType:custom_type withProperties:properties];
+    return [self initWithGType:custom_type withProperties:properties];
 }
 
 /* due to our weird architecture, you should never create a GLIBObject that
@@ -839,36 +883,6 @@ disconnect_signals_ht_foreach(gpointer key,
 - (GObject *)gobjectPointer
 {
     return _gobject_ptr;
-}
-
-+ (void)registerDerivedType:(Class)objcClass
-                   forGType:(GType)gType
-{
-    Class curClass = g_type_get_qdata(gType, GLIB_OBJC_TYPE_MAP_QUARK);
-    GType curType = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, objcClass));
-    
-    _goc_return_if_fail(objcClass && gType && gType != G_TYPE_NONE
-                        && gType != G_TYPE_INVALID);
-    
-    if(curClass == objcClass || curType == gType)
-        return;
-    
-    if(curClass) {
-        g_critical("glib-objc: attempt to register GType \"%s\", which is " \
-                   "already bound to class \"%s\"", g_type_name(gType),
-                   [[curClass description] UTF8String]);
-        return;
-    }
-    
-    if(curType) {
-        g_critical("glib-objc: attempt to register class \"%s\", which is " \
-                   "already bound to GType \"%s\"",
-                   [[objcClass description] UTF8String], g_type_name(curType));
-        return;
-    }
-    
-    g_type_set_qdata(gType, GLIB_OBJC_TYPE_MAP_QUARK, objcClass);
-    g_hash_table_insert(__objc_class_map, objcClass, GUINT_TO_POINTER(gType));
 }
 
 @end

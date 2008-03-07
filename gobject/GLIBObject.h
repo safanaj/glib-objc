@@ -32,22 +32,32 @@
     NSMutableDictionary *_user_data;
 }
 
-+ (id)objectWithType:(GType)type
-      withProperties:(NSDictionary *)properties;
-+ (id)objectWithType:(GType)type;
+/* should be called in +initialize in any ObjC GObject wrapper class.
+ * native ObjC subclasses should ignore this */
++ (void)registerWrappedGType:(GType)aGType;
 
-+ (id)objectWithGObject:(GObject *)gobject_ptr;
+/* creates an autoreleased ObjC class that wraps a GType */
++ (id)objectWithGType:(GType)aGType
+       withProperties:(NSDictionary *)properties;
++ (id)objectWithGType:(GType)aGType;
 
-+ (id)newWithType:(GType)type
-   withProperties:(NSDictionary *)properties;
-+ (id)newWithType:(GType)type;
+/* creates an autoreleased ObjC class that wraps an existing GObject */
++ (id)objectWithGObject:(GObject *)aGObject;
 
+/* creates an allocated ObjC class that wraps a GType */
++ (id)newWithGType:(GType)aGType
+    withProperties:(NSDictionary *)properties;
++ (id)newWithGType:(GType)aGType;
+
+/* inits an allocated ObjC class that wraps a GType */
 /* this is the designated initializer, and should be called/overridden by
  * subclasses that wrap a C GType */
-- (id)initWithType:(GType)type
-    withProperties:(NSDictionary *)properties;
-- (id)initWithType:(GType)type;
+- (id)initWithGType:(GType)aGType
+     withProperties:(NSDictionary *)properties;
+- (id)initWithGType:(GType)aGType;
 
+/* inits an allocated ObjC class that is derived from a GLIBObject and does
+ * not have a native C GType */
 /* these two methods shouldn't be overridden by a subclass, but should be
  * chained to in the designated initializer of classes that are subclasses
  * of Objective C types (that is, call this to create a new derived type
@@ -120,10 +130,6 @@
 
 /* method that people hopefully don't need, ever */
 - (GObject *)gobjectPointer;
-
-/* should be called in +initialize in any C GObject wrapper class */
-+ (void)registerDerivedType:(Class)objcClass
-                   forGType:(GType)gType;
 
 @end
 
