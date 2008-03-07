@@ -174,10 +174,16 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
             return [GLIBValue valueWithEnum:g_value_get_enum(value)];
         case G_TYPE_FLAGS:
             return [GLIBValue valueWithFlags:g_value_get_flags(value)];
+        case G_TYPE_STRING:
+            return [NSString stringWithUTF8String:g_value_get_string(value)];
+        case G_TYPE_POINTER:
+            return [NSValue valueWithPointer:g_value_get_pointer(value)];
+        case G_TYPE_BOXED:
+            return [GLIBValue valueWithBoxed:g_value_get_boxed(value)];
         
         default:
-            if(G_TYPE_STRING == value_type)
-                return [NSString stringWithUTF8String:g_value_get_string(value)];
+            if(G_TYPE_OBJECT == value_type || g_type_is_a(value_type, G_TYPE_OBJECT))
+                return [GLIBObject glibObjectWithGObject:g_value_get_object(value)];
             else if(G_TYPE_STRV == value_type) {
                 gchar **strv = g_value_get_boxed(value);
                 NSMutableArray *array;
@@ -188,12 +194,7 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
                 for(i = 0; strv[i]; ++i)
                     [array addObject:[NSString stringWithUTF8String:strv[i]]];
                 return array;
-            } else if(G_TYPE_OBJECT == value_type)
-                return [GLIBObject glibObjectWithGObject:g_value_get_object(value)];
-            else if(G_TYPE_BOXED == value_type)
-                return [GLIBValue valueWithBoxed:g_value_get_boxed(value)];
-            else if(G_TYPE_POINTER == value_type)
-                return [NSValue valueWithPointer:g_value_get_pointer(value)];
+            }
             
             g_critical("Unhandled GValue type \"%s\"", G_VALUE_TYPE_NAME(value));
             return nil;
