@@ -60,6 +60,7 @@ typedef struct
 } HandlersMatchData;
 
 
+static BOOL __glib_objc_inited = NO;
 static GQuark __glib_objc_object_quark = 0;
 static GQuark __glib_objc_type_map_quark = 0;
 static GHashTable *__objc_class_map = NULL;
@@ -348,11 +349,14 @@ objc_closure_finalize(gpointer data,
 
 + (void)initialize
 {
-    g_type_init();
-    
-    __objc_class_map = g_hash_table_new(g_direct_hash, g_direct_equal);
-    
-    [self registerWrappedGType:G_TYPE_OBJECT];
+    if(!__glib_objc_inited) {
+        g_type_init();
+        
+        __objc_class_map = g_hash_table_new(g_direct_hash, g_direct_equal);
+        [self registerWrappedGType:G_TYPE_OBJECT];
+        
+        __glib_objc_inited = YES;
+    }
 }
 
 + (void)registerWrappedGType:(GType)aGType
@@ -368,9 +372,11 @@ objc_closure_finalize(gpointer data,
         return;
     
     if(curClass) {
+#if 0  /* apparently +initialize gets inherited by subclasses?  lame */
         g_critical("%s: attempt to register GType \"%s\", which is " \
                    "already bound to class \"%s\"", PACKAGE,
                    g_type_name(aGType), [[curClass description] UTF8String]);
+#endif
         return;
     }
     
