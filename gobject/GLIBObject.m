@@ -414,18 +414,16 @@ objc_closure_finalize(gpointer data,
 }
 
 - (id)initCustomType:(NSString *)customTypeName
-            forClass:(Class)aClass
 {
     return [self initCustomType:customTypeName
-                       forClass:aClass
                  withProperties:nil];
 }
 
 - (id)initCustomType:(NSString *)customTypeName
-            forClass:(Class)aClass
       withProperties:(NSDictionary *)properties
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    Class aClass = [self class];
     NSString *fullTypeName;
     GType custom_type = 0;
     

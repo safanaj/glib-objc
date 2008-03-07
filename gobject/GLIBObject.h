@@ -53,10 +53,8 @@
  * of Objective C types (that is, call this to create a new derived type
  * in ObjC) */
 - (id)initCustomType:(NSString *)customTypeName
-            forClass:(Class)aClass
       withProperties:(NSDictionary *)properties;
-- (id)initCustomType:(NSString *)customTypeName
-            forClass:(Class)aClass;
+- (id)initCustomType:(NSString *)customTypeName;
 
 - (void)setProperty:(NSString *)propertyName
             toValue:(id)value;
