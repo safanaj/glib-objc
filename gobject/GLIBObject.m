@@ -189,7 +189,7 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
                     [array addObject:[NSString stringWithUTF8String:strv[i]]];
                 return array;
             } else if(G_TYPE_OBJECT == value_type)
-                return [GLIBObject objectWithGObject:g_value_get_object(value)];
+                return [GLIBObject glibObjectWithGObject:g_value_get_object(value)];
 #if 0
             /* FIXME: how should we handle boxed types? */
             else if(G_TYPE_BOXED == value_type)
@@ -378,38 +378,75 @@ objc_closure_finalize(gpointer data,
     g_hash_table_insert(__objc_class_map, aClass, GUINT_TO_POINTER(aGType));
 }
 
-+ (id)objectWithGType:(GType)aGType
++ (id)glibObjectWithProperties:(NSDictionary *)properties
 {
-    return [self objectWithGType:aGType withProperties:nil];
+    return [[[self alloc] initWithProperties:properties] autorelease];
 }
 
-+ (id)objectWithGType:(GType)aGType
-       withProperties:(NSDictionary *)properties
++ (id)glibObject
 {
-    return [[[self alloc] initWithGType:aGType
-                         withProperties:properties] autorelease];
+    return [self glibObjectWithProperties:nil];
 }
 
-+ (id)newWithGType:(GType)aGType
++ (id)glibObjectWithGObject:(GObject *)gobject_ptr
 {
-    return [self newWithGType:aGType withProperties:nil];
+    Class wrapperClass = nil;
+    id obj = nil;
+    SEL aSel;
+    IMP aImp;
+    
+    if((obj = g_object_get_qdata(gobject_ptr, GLIB_OBJC_OBJECT_QUARK)))
+        return obj;
+    
+    wrapperClass = g_type_get_qdata(G_OBJECT_TYPE(gobject_ptr),
+                                    GLIB_OBJC_TYPE_MAP_QUARK);
+    if(!wrapperClass) {
+        g_critical("GObject with type \"%s\" has not yet been wrapped",
+                   G_OBJECT_TYPE_NAME(gobject_ptr));
+        return nil;
+    }
+    
+    aSel = @selector(initWithGObject:);
+    if(![wrapperClass respondsToSelector:aSel]) {
+        g_critical("Wrapper class \"%s\" does not support creation from a GObject",
+                   [[wrapperClass description] UTF8String]);
+        return nil;
+    }
+    
+    obj = [wrapperClass alloc];
+    aImp = [obj methodForSelector:aSel];
+    /* FIXME: i'm not entirely sure this is right */
+    obj = ((id (*)(id, SEL, GObject *))aImp)(obj, aSel, gobject_ptr);
+    
+    return [obj autorelease];
 }
 
-+ (id)newWithGType:(GType)aGType
-    withProperties:(NSDictionary *)properties
++ (id)newWithProperties:(NSDictionary *)properties
 {
-    return [[self alloc] initWithGType:aGType withProperties:properties];
+    return [[self alloc] initWithProperties:properties];
 }
 
-- (id)initWithGType:(GType)aGType
++ (id)new
 {
-    return [self initWithGType:aGType withProperties:nil];
+    return [self newWithProperties:nil];
 }
 
 /* this is the designated initializer */
-- (id)initWithGType:(GType)aGType
-     withProperties:(NSDictionary *)properties
+- (id)initWithProperties:(NSDictionary *)properties
 {
+    GType wrapped_type;
+    
+    wrapped_type = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map,
+                                                        [self class]));
+    if(!wrapped_type || G_TYPE_NONE == wrapped_type
+       || G_TYPE_INVALID == wrapped_type)
+    {
+        g_critical("%s: attempt to instantiate class \"%s\", which has no "
+                   "associated GType", PACKAGE,
+                   [[[self class] description] UTF8String]);
+        return nil;
+    }
+    
     if((self = [super init])) {
         guint nparams = 0;
         GParameter *params = NULL;
@@ -435,13 +472,13 @@ objc_closure_finalize(gpointer data,
             [pool release];
         }
         
-        _gobject_ptr = g_object_newv(aGType, nparams, params);
+        _gobject_ptr = g_object_newv(wrapped_type, nparams, params);
         g_free(params);
         
-        /* this is sorta questionable.  in objc-land, we use autoreleased
+        /* this is sorta questionable.  in objc-land, we often use autoreleased
          * objects, which can serve a similar purpose to gobject's floating
          * reference.  to mimic the floating reference concept, use
-         * -objectForType: and similar */
+         * -glibObject or -glibObjectWithProperties: */
         if(g_object_is_floating(_gobject_ptr))
             g_object_ref_sink(_gobject_ptr);
         
@@ -454,6 +491,12 @@ objc_closure_finalize(gpointer data,
     
     return self;
 }
+
+- (id)init
+{
+    return [self initWithProperties:nil];
+}
+
 
 - (id)initCustomType:(NSString *)customTypeName
 {
@@ -487,8 +530,8 @@ objc_closure_finalize(gpointer data,
         /* find the superclass' GType */
         parent_type = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, superclass));
         if(!parent_type) {
-            g_critical("-initCustomType: passed superclass of type %s, which " \
-                       "is not a descendent of GLIBObject",
+            g_critical("%s: -initCustomType: passed superclass of type \"%s\", "
+                       "which is not a descendent of GLIBObject", PACKAGE,
                        [[superclass description] UTF8String]);
             [pool release];
             return nil;
@@ -496,8 +539,8 @@ objc_closure_finalize(gpointer data,
         
         /* sanity check, though this shouldn't happen */
         if(G_TYPE_NONE == parent_type || G_TYPE_INVALID == parent_type) {
-            g_critical("-initCustomType: passed supperclass of type %s, which " \
-                       "has an invalid GType",
+            g_critical("%s: -initCustomType: passed superclass of type \"%s\", "
+                       "which has an invalid GType", PACKAGE,
                        [[superclass description] UTF8String]);
             [pool release];
             return nil;
@@ -517,15 +560,7 @@ objc_closure_finalize(gpointer data,
                             GUINT_TO_POINTER(custom_type));
     }
     
-    return [self initWithGType:custom_type withProperties:properties];
-}
-
-/* due to our weird architecture, you should never create a GLIBObject that
- * doesn't have an associated GType */
-- (id)init
-{
-    g_critical("Called -init on GLIBObject: this is not allowed!");
-    return nil;
+    return [self initWithProperties:properties];
 }
 
 - (void)dealloc
@@ -845,39 +880,6 @@ disconnect_signals_ht_foreach(gpointer key,
 }
 
 #endif
-
-+ (id)objectWithGObject:(GObject *)gobject_ptr
-{
-    Class wrapperClass = nil;
-    id obj = nil;
-    SEL aSel;
-    IMP aImp;
-    
-    if((obj = g_object_get_qdata(gobject_ptr, GLIB_OBJC_OBJECT_QUARK)))
-       return obj;
-    
-    wrapperClass = g_type_get_qdata(G_OBJECT_TYPE(gobject_ptr),
-                                    GLIB_OBJC_TYPE_MAP_QUARK);
-    if(!wrapperClass) {
-        g_critical("GObject with type \"%s\" has not yet been wrapped",
-                   G_OBJECT_TYPE_NAME(gobject_ptr));
-        return nil;
-    }
-    
-    aSel = @selector(initWithGObject:);
-    if(![wrapperClass respondsToSelector:aSel]) {
-        g_critical("Wrapper class \"%s\" does not support creation from a GObject",
-                   [[wrapperClass description] UTF8String]);
-        return nil;
-    }
-    
-    obj = [wrapperClass alloc];
-    aImp = [obj methodForSelector:aSel];
-    /* FIXME: i'm not entirely sure this is right */
-    obj = ((id (*)(id, SEL, GObject *))aImp)(obj, aSel, gobject_ptr);
-    
-    return [obj autorelease];
-}
 
 /* ideally never necessary. */
 - (GObject *)gobjectPointer

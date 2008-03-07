@@ -32,33 +32,33 @@
     NSMutableDictionary *_user_data;
 }
 
-/* should be called in +initialize in any ObjC GObject wrapper class.
- * native ObjC subclasses should ignore this */
+/* should be called in +initialize in any ObjC class that wraps a native
+ * C GObject.  classes derived using ObjC only should ignore this */
 + (void)registerWrappedGType:(GType)aGType;
 
 /* creates an autoreleased ObjC class that wraps a GType */
-+ (id)objectWithGType:(GType)aGType
-       withProperties:(NSDictionary *)properties;
-+ (id)objectWithGType:(GType)aGType;
++ (id)glibObjectWithProperties:(NSDictionary *)properties;
++ (id)glibObject;
 
-/* creates an autoreleased ObjC class that wraps an existing GObject */
-+ (id)objectWithGObject:(GObject *)aGObject;
+/* creates an autoreleased ObjC class that wraps an existing GObject.  note
+ * that the ObjC wrapper class for this GObject's GType usually needs to
+ * respond to -initWithGObject: for this to work properly, but we can't test
+ * for this at runtime because GLIBObject implements this. */
++ (id)glibObjectWithGObject:(GObject *)aGObject;
 
 /* creates an allocated ObjC class that wraps a GType */
-+ (id)newWithGType:(GType)aGType
-    withProperties:(NSDictionary *)properties;
-+ (id)newWithGType:(GType)aGType;
++ (id)newWithProperties:(NSDictionary *)properties;
+/* + (id)new works too, of course */
 
 /* inits an allocated ObjC class that wraps a GType */
 /* this is the designated initializer, and should be called/overridden by
  * subclasses that wrap a C GType */
-- (id)initWithGType:(GType)aGType
-     withProperties:(NSDictionary *)properties;
-- (id)initWithGType:(GType)aGType;
+- (id)initWithProperties:(NSDictionary *)properties;
+/* - (id)init works too, of course */
 
 /* inits an allocated ObjC class that is derived from a GLIBObject and does
  * not have a native C GType */
-/* these two methods shouldn't be overridden by a subclass, but should be
+/* these two methods usally shouldn't be overridden by a subclass, but should be
  * chained to in the designated initializer of classes that are subclasses
  * of Objective C types (that is, call this to create a new derived type
  * in ObjC) */
