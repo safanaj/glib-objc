@@ -196,7 +196,8 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
                 return array;
             }
             
-            g_critical("Unhandled GValue type \"%s\"", G_VALUE_TYPE_NAME(value));
+            g_critical("%s: unhandled GValue type \"%s\"", PACKAGE,
+                       G_VALUE_TYPE_NAME(value));
             return nil;
     }
 }
@@ -225,7 +226,8 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
             else if(!strcmp(typestr, @encode(gpointer)))
                 GV_SET(G_TYPE_BOXED, GLIBValue, boxedValue, set_boxed);
             else {
-                g_critical("Unhandled GLIBValue signature \"%s\"", typestr);
+                g_critical("%s: nhandled GLIBValue signature \"%s\"", PACKAGE,
+                           typestr);
                 return NO;
             }
         } else if([nsobject isKindOfClass:[NSNumber class]]) {
@@ -258,13 +260,15 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
             else if(!strcmp(typestr, @encode(gdouble)))
                 GV_SET(G_TYPE_DOUBLE, NSNumber, doubleValue, set_double);
             else {
-                g_critical("Unhandled NSNumber signature \"%s\"", typestr);
+                g_critical("%s: unhandled NSNumber signature \"%s\"", PACKAGE,
+                           typestr);
                 return NO;
             }
         } else if(!strcmp(typestr, @encode(gpointer)))
             GV_SET(G_TYPE_POINTER, NSValue, pointerValue, set_pointer);
         else {
-            g_critical("Unhandled NSValue signature \"%s\"", typestr);
+            g_critical("%s: unhandled NSValue signature \"%s\"", PACKAGE,
+                       typestr);
             return NO;
         }
     } else if([nsobject isKindOfClass:[NSString class]])
@@ -287,7 +291,7 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
         glib_objc_g_value_set_nsobject(gvalue, nsobject);
 #endif
     } else {
-        g_critical("Unhandled NSObject type \"%s\"",
+        g_critical("%s: nhandled NSObject type \"%s\"", PACKAGE,
                    [[nsobject description] UTF8String]);
         return NO;
     }
@@ -313,7 +317,7 @@ glib_objc_marshal_signal(GClosure *closure,
     for(i = 0; i < n_param_values; ++i) {
         param = glib_objc_nsobject_from_gvalue(&param_values[i]);
         if(!param) {
-            g_critical("Couldn't marshal value of type \"%s\"",
+            g_critical("%s: couldn't marshal value of type \"%s\"", PACKAGE,
                        G_VALUE_TYPE_NAME(&param_values[i]));
         }
         
@@ -364,15 +368,15 @@ objc_closure_finalize(gpointer data,
         return;
     
     if(curClass) {
-        g_critical("glib-objc: attempt to register GType \"%s\", which is " \
-                   "already bound to class \"%s\"", g_type_name(aGType),
-                   [[curClass description] UTF8String]);
+        g_critical("%s: attempt to register GType \"%s\", which is " \
+                   "already bound to class \"%s\"", PACKAGE,
+                   g_type_name(aGType), [[curClass description] UTF8String]);
         return;
     }
     
     if(curGType) {
-        g_critical("glib-objc: attempt to register class \"%s\", which is " \
-                   "already bound to GType \"%s\"",
+        g_critical("%s: attempt to register class \"%s\", which is " \
+                   "already bound to GType \"%s\"", PACKAGE,
                    [[aClass description] UTF8String], g_type_name(curGType));
         return;
     }
@@ -399,20 +403,20 @@ objc_closure_finalize(gpointer data,
     IMP aImp;
     
     if((obj = g_object_get_qdata(gobject_ptr, GLIB_OBJC_OBJECT_QUARK)))
-        return obj;
+        return [[obj retain] autorelease];
     
     wrapperClass = g_type_get_qdata(G_OBJECT_TYPE(gobject_ptr),
                                     GLIB_OBJC_TYPE_MAP_QUARK);
     if(!wrapperClass) {
-        g_critical("GObject with type \"%s\" has not yet been wrapped",
-                   G_OBJECT_TYPE_NAME(gobject_ptr));
+        g_critical("%s: GObject with type \"%s\" has not yet been wrapped",
+                   PACKAGE, G_OBJECT_TYPE_NAME(gobject_ptr));
         return nil;
     }
     
     aSel = @selector(initWithGObject:);
     if(![wrapperClass respondsToSelector:aSel]) {
-        g_critical("Wrapper class \"%s\" does not support creation from a GObject",
-                   [[wrapperClass description] UTF8String]);
+        g_critical("%s: wrapper class \"%s\" does not support creation from a "
+                   "GObject", PACKAGE, [[wrapperClass description] UTF8String]);
         return nil;
     }
     
@@ -665,7 +669,7 @@ objc_closure_finalize(gpointer data,
                             G_OBJECT_TYPE(_gobject_ptr),
                             &signal_id, &detail, TRUE))
     {
-        g_warning("No signal of name \"%s\" for type \"%s\"",
+        g_warning("%s: no signal of name \"%s\" for type \"%s\"", PACKAGE,
                   [detailedSignal UTF8String],
                   G_OBJECT_TYPE_NAME(_gobject_ptr));
         return 0;
@@ -681,8 +685,8 @@ objc_closure_finalize(gpointer data,
     /* '-2' is because all methods have 'self' and '_cmd' args at the front.
      * '+1' is because we include the object itself as the first param. */
     if([msig numberOfArguments] - 2 != query.n_params + 1) {
-        g_critical("Passed method with incorrect number of arguments for signal \"%s\"",
-                   [detailedSignal UTF8String]);
+        g_critical("%s: passed method with incorrect number of arguments for "
+                   "signal \"%s\"", PACKAGE, [detailedSignal UTF8String]);
         return 0;
     }
     
@@ -780,7 +784,7 @@ disconnect_signals_ht_foreach(gpointer key,
                             G_OBJECT_TYPE(_gobject_ptr),
                             &signal_id, &detail, TRUE))
     {
-        g_warning("Unable to parse detailed signal \"%s\"",
+        g_warning("%s: unable to parse detailed signal \"%s\"", PACKAGE,
                   [detailedSignal UTF8String]);
         return;
     }

@@ -43,7 +43,9 @@
 /* creates an autoreleased ObjC class that wraps an existing GObject.  note
  * that the ObjC wrapper class for this GObject's GType usually needs to
  * respond to -initWithGObject: for this to work properly, but we can't test
- * for this at runtime because GLIBObject implements this. */
+ * for this at runtime because GLIBObject implements this.  if aGObject
+ * already has an ObjC wrapper, it will be returned (with an autorelease
+ * added). */
 + (id)glibObjectWithGObject:(GObject *)aGObject;
 
 /* creates an allocated ObjC class that wraps a GType */
