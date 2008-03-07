@@ -25,7 +25,8 @@
 #import "GLIBValue.h"
 #include "glib-objc-private.h"
 
-#define GLIB_OBJC_OBJECT_QUARK  (glib_objc_object_quark_get())
+#define GLIB_OBJC_OBJECT_QUARK    (glib_objc_object_quark_get())
+#define GLIB_OBJC_TYPE_MAP_QUARK  (glib_objc_type_map_quark_get())
 
 typedef struct
 {
@@ -440,23 +441,22 @@ objc_closure_finalize(gpointer data,
         GTypeQuery query;
         GTypeInfo info;
         
-        /* we'll assume that the class we want to clone doesn't have a gtype */
+        /* assume that the class we want to clone doesn't yet have a GType */
         superclass = [aClass superclass];
         
-        /* make sure the superclass ia a subclass of GLIBObject */
-        if(![superclass respondsToSelector:@selector(gobjectType)]) {
-            g_critical("-cloneCustomType: passed superclass of type %s, which " \
+        /* find the superclass' GType */
+        parent_type = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, superclass));
+        if(!parent_type) {
+            g_critical("-initCustomType: passed superclass of type %s, which " \
                        "is not a descendent of GLIBObject",
                        [[superclass description] UTF8String]);
             [pool release];
             return nil;
         }
         
-        /* figure out the parent GType; this way our custom type will behave
-         * properly */
-        parent_type = [superclass gobjectType];
+        /* sanity check, though this shouldn't happen */
         if(G_TYPE_NONE == parent_type || G_TYPE_INVALID == parent_type) {
-            g_critical("-cloneCustomType: passed supperclass of type %s, which " \
+            g_critical("-initCustomType: passed supperclass of type %s, which " \
                        "has an invalid GType",
                        [[superclass description] UTF8String]);
             [pool release];
@@ -471,6 +471,8 @@ objc_closure_finalize(gpointer data,
         custom_type = g_type_register_static(parent_type,
                                              [fullTypeName UTF8String],
                                              &info, 0);
+        g_hash_table_insert(__objc_class_map, aClass,
+                            GUINT_TO_POINTER(custom_type));
     }
     
     return [self initWithType:custom_type withProperties:properties];
@@ -804,13 +806,35 @@ disconnect_signals_ht_foreach(gpointer key,
 
 + (id)objectWithGObject:(GObject *)gobject_ptr
 {
+    Class wrapperClass = nil;
     id obj = nil;
+    SEL aSel;
+    IMP aImp;
     
     if((obj = g_object_get_qdata(gobject_ptr, GLIB_OBJC_OBJECT_QUARK)))
        return obj;
     
-    /* FIXME: create new wrapper */
-    return nil;
+    wrapperClass = g_type_get_qdata(G_OBJECT_TYPE(gobject_ptr),
+                                    GLIB_OBJC_TYPE_MAP_QUARK);
+    if(!wrapperClass) {
+        g_critical("GObject with type \"%s\" has not yet been wrapped",
+                   G_OBJECT_TYPE_NAME(gobject_ptr));
+        return nil;
+    }
+    
+    aSel = @selector(initWithGObject:);
+    if(![wrapperClass respondsToSelector:aSel]) {
+        g_critical("Wrapper class \"%s\" does not support creation from a GObject",
+                   [[wrapperClass description] UTF8String]);
+        return nil;
+    }
+    
+    obj = [wrapperClass alloc];
+    aImp = [obj methodForSelector:aSel];
+    /* FIXME: i'm not entirely sure this is right */
+    obj = ((id (*)(id, SEL, GObject *))aImp)(obj, aSel, gobject_ptr);
+    
+    return [obj autorelease];
 }
 
 /* ideally never necessary. */
@@ -819,15 +843,10 @@ disconnect_signals_ht_foreach(gpointer key,
     return _gobject_ptr;
 }
 
-+ (GType)gobjectType
-{
-    return G_TYPE_OBJECT;
-}
-
 + (void)registerDerivedType:(Class)objcClass
                    forGType:(GType)gType
 {
-    Class curClass = g_type_get_qdata(gType, glib_objc_type_map_quark_get());
+    Class curClass = g_type_get_qdata(gType, GLIB_OBJC_TYPE_MAP_QUARK);
     GType curType = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, objcClass));
     
     _goc_return_if_fail(objcClass && gType && gType != G_TYPE_NONE
@@ -836,14 +855,21 @@ disconnect_signals_ht_foreach(gpointer key,
     if(curClass == objcClass || curType == gType)
         return;
     
-    if(curClass || curType) {
+    if(curClass) {
         g_critical("glib-objc: attempt to register GType \"%s\", which is " \
                    "already bound to class \"%s\"", g_type_name(gType),
-                   [[objcClass description] UTF8String]);
+                   [[curClass description] UTF8String]);
         return;
     }
     
-    g_type_set_qdata(gType, glib_objc_type_map_quark_get(), objcClass);
+    if(curType) {
+        g_critical("glib-objc: attempt to register class \"%s\", which is " \
+                   "already bound to GType \"%s\"",
+                   [[objcClass description] UTF8String], g_type_name(curType));
+        return;
+    }
+    
+    g_type_set_qdata(gType, GLIB_OBJC_TYPE_MAP_QUARK, objcClass);
     g_hash_table_insert(__objc_class_map, objcClass, GUINT_TO_POINTER(gType));
 }
 

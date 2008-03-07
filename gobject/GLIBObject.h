@@ -36,6 +36,8 @@
       withProperties:(NSDictionary *)properties;
 + (id)objectWithType:(GType)type;
 
++ (id)objectWithGObject:(GObject *)gobject_ptr;
+
 + (id)newWithType:(GType)type
    withProperties:(NSDictionary *)properties;
 + (id)newWithType:(GType)type;
@@ -120,9 +122,6 @@
 
 /* method that people hopefully don't need, ever */
 - (GObject *)gobjectPointer;
-
-/* should only be overridden by classes that wrap C GObject types */
-+ (GType)gobjectType;
 
 /* should be called in +initialize in any C GObject wrapper class */
 + (void)registerDerivedType:(Class)objcClass
