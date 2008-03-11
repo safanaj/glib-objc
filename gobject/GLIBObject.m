@@ -38,6 +38,12 @@ typedef struct
     NSInvocation *invocation;
 } ObjCClosure;
 
+typedef struct
+{
+    Class target_class;
+    SEL selector;
+} ObjCSignalAccumData;
+
 typedef enum
 {
     HANDLER_MATCH_ID       = (1 << 0),
@@ -312,8 +318,10 @@ glib_objc_marshal_signal(GClosure *closure,
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     ObjCClosure *occlosure = (ObjCClosure *)closure;
+    NSInvocation *invoc = occlosure->invocation;
     id param;
     int i;
+    gboolean clear_target = FALSE;
     
     for(i = 0; i < n_param_values; ++i) {
         param = glib_objc_nsobject_from_gvalue(&param_values[i]);
@@ -322,18 +330,61 @@ glib_objc_marshal_signal(GClosure *closure,
                        G_VALUE_TYPE_NAME(&param_values[i]));
         }
         
-        [occlosure->invocation setArgument:param atIndex:i+3];
+        [invoc setArgument:param atIndex:i+2];
+    }
+
+    if(![invoc target]) {
+        /* this is to handle class closures */
+        id target = nil;
+        [invoc getArgument:&target atIndex:2];
+        [invoc setTarget:target];
+        clear_target = TRUE;
     }
     
-    [occlosure->invocation invoke];
+    [invoc invoke];
     
     if(G_VALUE_TYPE(return_value)) {
         id ret = nil;
-        [occlosure->invocation getReturnValue:(void *)&ret];
+        [invoc getReturnValue:(void *)&ret];
         glib_objc_gvalue_from_nsobject(return_value, ret, FALSE);
     }
+
+    if(clear_target)
+        [invoc setTarget:nil];
     
     [pool release];
+}
+
+static gboolean
+glib_objc_accumulate_signal(GSignalInvocationHint *ihint,
+                            GValue *return_accu,
+                            const GValue *handler_return,
+                            gpointer data)
+{
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    ObjCSignalAccumData *adata = data;
+    id returnAccu = nil, handlerReturn;
+    NSMethodSignature *msig;
+    NSInvocation *invoc;
+    BOOL ret = NO;
+
+    msig = [adata->target_class instanceMethodSignatureForSelector:adata->selector];
+    invoc = [NSInvocation invocationWithMethodSignature:msig];
+
+    [invoc setTarget:adata->target_class];
+    [invoc setSelector:adata->selector];
+    [invoc setArgument:&returnAccu atIndex:2];
+    handlerReturn = glib_objc_nsobject_from_gvalue(handler_return);
+    [invoc setArgument:&handlerReturn atIndex:3];
+
+    [invoc invoke];
+
+    glib_objc_gvalue_from_nsobject(return_accu, returnAccu, FALSE);
+    [invoc getReturnValue:&ret];
+
+    [pool release];
+
+    return ret;
 }
 
 static void
@@ -706,7 +757,7 @@ objc_closure_finalize(gpointer data,
     closure->invocation = [[NSInvocation invocationWithMethodSignature:msig] retain];
     [closure->invocation setTarget:object];
     [closure->invocation setSelector:selector];
-    [closure->invocation setArgument:self atIndex:2];
+    //[closure->invocation setArgument:self atIndex:2];
     
     g_closure_set_marshal((GClosure *)closure, glib_objc_marshal_signal);
     g_closure_add_finalize_notifier((GClosure *)closure, NULL,
@@ -809,6 +860,98 @@ disconnect_signals_ht_foreach(gpointer key,
     
     g_hash_table_foreach_remove(_closures, disconnect_signals_ht_foreach,
                                 &mdata);
+}
+
++ (guint)registerNewSignal:(NSString *)signalName
+                 withFlags:(GSignalFlags)flags
+        withDefaultHandler:(SEL)defaultHandler
+           withAccumulator:(SEL)accumulator
+             withArguments:(guint)numArguments
+{
+    ObjCClosure *occlosure = NULL;
+    ObjCSignalAccumData *accum_data = NULL;
+    GType *param_types = NULL;
+    guint i, sig_id;
+    
+    if(defaultHandler) {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        char signature[1024] = { 0 };
+        guint i;
+        NSMethodSignature *msig;
+        
+        g_strlcpy(signature, @encode(id), sizeof(signature));  /* return type */
+        for(i = 0; i < numArguments; ++i)
+            g_strlcat(signature, @encode(id), sizeof(signature));
+        msig = [NSMethodSignature signatureWithObjCTypes:signature];
+        
+        occlosure = (ObjCClosure *)g_closure_new_simple(sizeof(ObjCClosure), NULL);
+        occlosure->invocation = [[NSInvocation invocationWithMethodSignature:msig] retain];
+        [occlosure->invocation setSelector:defaultHandler];
+
+        g_closure_set_marshal((GClosure *)occlosure, glib_objc_marshal_signal);
+        g_closure_add_finalize_notifier((GClosure *)occlosure, NULL,
+                                        objc_closure_finalize);
+
+        [pool release];
+    }
+
+    if(accumulator) {
+        accum_data = g_new(ObjCSignalAccumData, 1);
+        accum_data->target_class = self;
+        accum_data->selector = accumulator;
+    }
+
+    if(numArguments) {
+        param_types = g_new(GType, numArguments);
+        for(i = 0; i < numArguments; ++i)
+            param_types[i] = G_TYPE_POINTER;
+    }
+    
+    sig_id = g_signal_newv([signalName UTF8String],
+                           GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map,
+                                                                self)),
+                           flags, (GClosure *)occlosure,
+                           accumulator ? glib_objc_accumulate_signal : NULL,
+                           accumulator ? accum_data : NULL,
+                           glib_objc_marshal_signal, G_TYPE_POINTER,
+                           numArguments, param_types);
+
+    g_free(param_types);
+
+    return sig_id;
+}
+
++ (guint)registerNewSignal:(NSString *)signalName
+                 withFlags:(GSignalFlags)flags
+        withDefaultHandler:(SEL)defaultHandler
+             withArguments:(guint)numArguments
+{
+    return [self registerNewSignal:signalName
+                         withFlags:flags
+                withDefaultHandler:defaultHandler
+                   withAccumulator:NULL
+                     withArguments:numArguments];
+}
+
++ (guint)registerNewSignal:(NSString *)signalName
+                 withFlags:(GSignalFlags)flags
+             withArguments:(guint)numArguments
+{
+    return [self registerNewSignal:signalName
+                         withFlags:flags
+                withDefaultHandler:NULL
+                   withAccumulator:NULL
+                     withArguments:numArguments];
+}
+
++ (guint)registerNewSignal:(NSString *)signalName
+                 withFlags:(GSignalFlags)flags
+{
+    return [self registerNewSignal:signalName
+                         withFlags:flags
+                withDefaultHandler:NULL
+                   withAccumulator:NULL
+                     withArguments:0];
 }
 
 - (void)freezeNotify

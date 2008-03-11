@@ -89,6 +89,21 @@
               fromObject:(id)object
             withSelector:(SEL)selector;
 
++ (guint)registerNewSignal:(NSString *)signalName
+                 withFlags:(GSignalFlags)flags
+        withDefaultHandler:(SEL)defaultHandler
+           withAccumulator:(SEL)accumulator
+             withArguments:(guint)numArguments;
++ (guint)registerNewSignal:(NSString *)signalName
+                 withFlags:(GSignalFlags)flags
+        withDefaultHandler:(SEL)defaultHandler
+             withArguments:(guint)numArguments;
++ (guint)registerNewSignal:(NSString *)signalName
+                 withFlags:(GSignalFlags)flags
+             withArguments:(guint)numArguments;
++ (guint)registerNewSignal:(NSString *)signalName
+                 withFlags:(GSignalFlags)flags;
+
 - (void)freezeNotify;
 - (void)thawNotify;
 - (void)notify:(NSString *)propertyName;
