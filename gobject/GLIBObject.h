@@ -32,8 +32,21 @@
     NSMutableDictionary *_user_data;
 }
 
+/* used to map a native C GType to an ObjC class */
+/* this macro should be used at the toplevel */
+#define GLIB_OBJC_DERIVED_TYPE_DECL(aGType) \
+    static gpointer __glib_objc_init_once_func(gpointer data) { \
+        [(id)data registerWrappedGType:(aGType)]; \
+        return NULL; \
+    } \
+    static GOnce __glib_objc_init_once = G_ONCE_INIT
+/* this macro should be used in +initialize */
+#define GLIB_OBJC_DERIVED_TYPE_IMPL  g_once(&__glib_objc_init_once, __glib_objc_init_once_func, self)
+
 /* should be called in +initialize in any ObjC class that wraps a native
- * C GObject.  classes derived using ObjC only should ignore this */
+ * C GObject.  classes derived using ObjC only should ignore this.
+ * see the GLIB_OBJC_DERIVED_TYPE_*() macros above for the safest way
+ * to do this. */
 + (void)registerWrappedGType:(GType)aGType;
 
 /* creates an autoreleased ObjC class that wraps a GType */

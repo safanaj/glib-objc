@@ -66,15 +66,14 @@ typedef struct
 } HandlersMatchData;
 
 
-static BOOL __glib_objc_inited = NO;
-static GQuark __glib_objc_object_quark = 0;
-static GQuark __glib_objc_type_map_quark = 0;
 static GHashTable *__objc_class_map = NULL;
 
 
 static GQuark
 glib_objc_object_quark_get()
 {
+    static GQuark __glib_objc_object_quark = 0;
+
     if(!__glib_objc_object_quark)
         __glib_objc_object_quark = g_quark_from_static_string("--glib-objc-object");
     
@@ -84,6 +83,8 @@ glib_objc_object_quark_get()
 static GQuark
 glib_objc_type_map_quark_get()
 {
+    static GQuark __glib_objc_type_map_quark = 0;
+
     if(!__glib_objc_type_map_quark)
         __glib_objc_type_map_quark = g_quark_from_static_string("--glib-objc-type-map");
     
@@ -398,16 +399,23 @@ objc_closure_finalize(gpointer data,
 
 @implementation GLIBObject
 
+static GOnce __glib_objc_gobject_init_once = G_ONCE_INIT;
+
+static gpointer
+_glib_objc_gobject_init_once_func(gpointer data)
+{
+    g_type_init();
+
+    __objc_class_map = g_hash_table_new(g_direct_hash, g_direct_equal);
+    [(id)data registerWrappedGType:G_TYPE_OBJECT];
+
+    return NULL;
+}
+
 + (void)initialize
 {
-    if(!__glib_objc_inited) {
-        g_type_init();
-        
-        __objc_class_map = g_hash_table_new(g_direct_hash, g_direct_equal);
-        [self registerWrappedGType:G_TYPE_OBJECT];
-        
-        __glib_objc_inited = YES;
-    }
+    g_once(&__glib_objc_gobject_init_once,
+           _glib_objc_gobject_init_once_func, self);
 }
 
 + (void)registerWrappedGType:(GType)aGType
@@ -423,11 +431,9 @@ objc_closure_finalize(gpointer data,
         return;
     
     if(curClass) {
-#if 0  /* apparently +initialize gets inherited by subclasses?  lame */
         g_critical("%s: attempt to register GType \"%s\", which is " \
                    "already bound to class \"%s\"", PACKAGE,
                    g_type_name(aGType), [[curClass description] UTF8String]);
-#endif
         return;
     }
     
