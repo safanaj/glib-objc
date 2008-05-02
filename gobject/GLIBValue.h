@@ -20,6 +20,10 @@
 #ifndef __GLIB_OBJC_VALUE_H__
 #define __GLIB_OBJC_VALUE_H__
 
+#if !defined(GLIB_OBJC_COMPILATION) && !defined(__IN_GLIB_OBJC_H)
+#error "Do not include GLIBValue.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
+#endif
+
 #import <Foundation/Foundation.h>
 
 @interface GLIBValue : NSValue

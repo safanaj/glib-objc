@@ -17,21 +17,16 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __GLIB_OBJC_NSOBJECT_BOXED_H__
-#define __GLIB_OBJC_NSOBJECT_BOXED_H__
+#ifndef __GLIB_OBJC_H__
+#define __GLIB_OBJC_H__
 
-#if !defined(GLIB_OBJC_COMPILATION) && !defined(__IN_GLIB_OBJC_H)
-#error "Do not include ns-object-boxed.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
-#endif
+#define __IN_GLIB_OBJC_H
 
-#define GOBJC_TYPE_NSOBJECT  (glib_objc_nsobject_get_type())
+#include <glib-objc/GLIBObject.h>
+#include <glib-objc/GLIBValue.h>
 
-#include <glib-object.h>
+#include <glib-objc/ns-object-boxed.h>
 
-G_BEGIN_DECLS
+#undef __IN_GLIB_OBJC_H
 
-GType glib_objc_nsobject_get_type() G_GNUC_CONST;
-
-G_END_DECLS
-
-#endif  /* __GLIB_OBJC_NSOBJECT_BOXED_H__ */
+#endif  /* __GLIB_OBJC_H__ */

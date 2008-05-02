@@ -4,6 +4,7 @@ gobjectobjcincludedir = $(includedir)/glib-objc-2.0/glib-objc
 gobjectobjcinclude_HEADERS = \
 	GLIBObject.h \
 	GLIBValue.h \
+	glib-objc.h \
 	ns-object-boxed.h
 
 libgobject_objc_2_0_la_SOURCES = \
@@ -14,6 +15,7 @@ libgobject_objc_2_0_la_SOURCES = \
 	ns-object-boxed.m
 
 libgobject_objc_2_0_la_CFLAGS = \
+	-DGLIB_OBJC_COMPILATION \
 	$(GOBJECT_CFLAGS) \
 	$(FOUNDATION_CFLAGS) \
 	$(FOUNDATION_HACK_CFLAGS)

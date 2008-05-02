@@ -20,6 +20,10 @@
 #ifndef __OBCJ_GLIB_OBJECT_H__
 #define __OBJC_GLIB_OBJECT_H__
 
+#if !defined(GLIB_OBJC_COMPILATION) && !defined(__IN_GLIB_OBJC_H)
+#error "Do not include GLIBObject.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
+#endif
+
 #import <Foundation/Foundation.h>
 #include <glib-object.h>
 
