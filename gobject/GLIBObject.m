@@ -24,6 +24,7 @@
 #import "GLIBObject.h"
 #import "GLIBValue.h"
 #include "glib-objc-private.h"
+#include "ns-object-boxed.h"
 
 #define GLIB_OBJC_OBJECT_QUARK    (glib_objc_object_quark_get())
 #define GLIB_OBJC_TYPE_MAP_QUARK  (glib_objc_type_map_quark_get())
@@ -202,6 +203,9 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
                 for(i = 0; strv[i]; ++i)
                     [array addObject:[NSString stringWithUTF8String:strv[i]]];
                 return array;
+            } else if(GOBJC_TYPE_NSOBJECT == value_type) {
+                NSObject *nsobj = g_value_get_boxed(value);
+                return [[nsobj retain] autorelease];
             }
             
             g_critical("%s: unhandled GValue type \"%s\"", PACKAGE,
@@ -322,12 +326,10 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
         }
 
         [pool release];
-#if 0  /* FIXME: implement a NSObject GType */
     } else if([nsobject isKindOfClass:[NSObject class]]) {
         if(gvalue_needs_init)
             g_value_init(gvalue, GOBJC_TYPE_NSOBJECT);
-        glib_objc_g_value_set_nsobject(gvalue, nsobject);
-#endif
+        g_value_take_boxed(gvalue, nsobject);
     } else {
         g_critical("%s: nhandled NSObject type \"%s\"", PACKAGE,
                    [[nsobject description] UTF8String]);

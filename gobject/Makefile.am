@@ -1,11 +1,17 @@
 lib_LTLIBRARIES = libgobject-objc-2.0.la
 
-libgobject_objc_2_0_la_SOURCES = \
+gobjectobjcincludedir = $(includedir)/glib-objc-2.0/glib-objc
+gobjectobjcinclude_HEADERS = \
 	GLIBObject.h \
-	GLIBObject.m \
 	GLIBValue.h \
+	ns-object-boxed.h
+
+libgobject_objc_2_0_la_SOURCES = \
+	$(gobjectobjcinclude_HEADERS) \
+	GLIBObject.m \
 	GLIBValue.m \
-	glib-objc-private.h
+	glib-objc-private.h \
+	ns-object-boxed.m
 
 libgobject_objc_2_0_la_CFLAGS = \
 	$(GOBJECT_CFLAGS) \
