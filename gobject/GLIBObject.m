@@ -283,14 +283,44 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
         GV_SET(G_TYPE_STRING, NSString, UTF8String, set_string);
     else if([nsobject isKindOfClass:[NSArray class]]) {
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-        gchar **strv = g_new(gchar *, [(NSArray *)nsobject count] + 1);
-        NSEnumerator *strs = [(NSArray *)nsobject objectEnumerator];
-        NSString *str;
-        int i = 0;
+        GValueArray *varr = g_value_array_new([(NSArray *)nsobject count]);
+        NSEnumerator *objs = [(NSArray *)nsobject objectEnumerator];
+        id <NSObject> obj;
+        BOOL all_strings = YES;
         
-        while((str = [strs nextObject]))
-            strv[i++] = g_strdup([str UTF8String]);
-        strv[i] = NULL;
+        while((obj = [objs nextObject])) {
+            GValue item_value = { 0, };
+
+            if(glib_objc_gvalue_from_nsobject(&item_value, obj, YES)) {
+                if(G_VALUE_TYPE(&item_value) != G_TYPE_STRING)
+                    all_strings = NO;
+                g_value_array_append(varr, &item_value);
+                g_value_unset(&item_value);
+            }
+        }
+
+        if(all_strings) {
+            /* all the values in the array are strings; return a
+             * gchar ** as a G_TYPE_STRV instead */
+            gchar **strs = g_new(gchar *, varr->n_values + 1);
+            gint i;
+
+            for(i = 0; i < varr->n_values; ++i) {
+                GValue *item_value = g_value_array_get_nth(varr, i);
+                strs[i] = g_value_dup_string(item_value);
+            }
+            strs[varr->n_values] = NULL;
+
+            g_value_array_free(varr);
+            if(gvalue_needs_init)
+                g_value_init(gvalue, G_TYPE_STRV);
+            g_value_take_boxed(gvalue, strs);
+        } else {
+            if(gvalue_needs_init)
+                g_value_init(gvalue, G_TYPE_VALUE_ARRAY);
+            g_value_take_boxed(gvalue, varr);
+        }
+
         [pool release];
 #if 0  /* FIXME: implement a NSObject GType */
     } else if([nsobject isKindOfClass:[NSObject class]]) {
