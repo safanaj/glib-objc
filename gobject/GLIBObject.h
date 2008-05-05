@@ -75,16 +75,6 @@
 - (id)initWithProperties:(NSDictionary *)properties;
 /* - (id)init works too, of course */
 
-/* inits an allocated ObjC class that is derived from a GLIBObject and does
- * not have a native C GType */
-/* these two methods usally shouldn't be overridden by a subclass, but should be
- * chained to in the designated initializer of classes that are subclasses
- * of Objective C types (that is, call this to create a new derived type
- * in ObjC) */
-- (id)initCustomType:(NSString *)customTypeName
-      withProperties:(NSDictionary *)properties;
-- (id)initCustomType:(NSString *)customTypeName;
-
 - (void)setProperty:(NSString *)propertyName
             toValue:(id)value;
 - (id)getProperty:(NSString *)propertyName;

@@ -340,6 +340,60 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
 #undef GV_SET
 }
 
+static GType
+glib_objc_get_custom_type(Class aClass)
+{
+    GType custom_type = 0;
+
+    _goc_return_val_if_fail(aClass, G_TYPE_INVALID);
+
+    custom_type = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map,
+                                                       aClass));
+
+    if(!custom_type) {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        NSString *fullTypeName;
+        Class superclass;
+        GType parent_type;
+        GTypeQuery query;
+        GTypeInfo info;
+
+        /* find or create the superclass' GType, recursively if needed */
+        superclass = [aClass superclass];
+        if(!superclass) {
+            g_critical("%s: failed to create custom type for class \"%s\", as "
+                       "it is not a descendent of GLIBObject", PACKAGE,
+                       [[superclass description] UTF8String]);
+            [pool release];
+            return G_TYPE_INVALID;
+        }
+
+        parent_type = glib_objc_get_custom_type(superclass);
+        if(!parent_type) {
+            [pool release];
+            return G_TYPE_INVALID;
+        }
+        g_assert(parent_type != G_TYPE_INVALID && parent_type != G_TYPE_NONE);
+
+        g_type_query(parent_type, &query);
+        memset(&info, 0, sizeof(info));
+        info.class_size = query.class_size;
+        info.instance_size = query.instance_size;
+
+        fullTypeName = [@"__glib_objc__" stringByAppendingString:[aClass description]];
+        custom_type = g_type_register_static(parent_type,
+                                             [fullTypeName UTF8String],
+                                             &info, 0);
+
+        g_type_set_qdata(custom_type, GLIB_OBJC_TYPE_MAP_QUARK, aClass);
+        g_hash_table_insert(__objc_class_map, aClass,
+                            GUINT_TO_POINTER(custom_type));
+
+        [pool release];
+    }
+
+    return custom_type;
+}
 
 static void
 glib_objc_marshal_signal(GClosure *closure,
@@ -537,17 +591,9 @@ _glib_objc_gobject_init_once_func(gpointer data)
 - (id)initWithProperties:(NSDictionary *)properties
 {
     GType wrapped_type;
-    
-    wrapped_type = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map,
-                                                        [self class]));
-    if(!wrapped_type || G_TYPE_NONE == wrapped_type
-       || G_TYPE_INVALID == wrapped_type)
-    {
-        g_critical("%s: attempt to instantiate class \"%s\", which has no "
-                   "associated GType", PACKAGE,
-                   [[[self class] description] UTF8String]);
-        return nil;
-    }
+
+    wrapped_type = glib_objc_get_custom_type([self class]);
+    g_assert(wrapped_type != G_TYPE_INVALID && wrapped_type != G_TYPE_NONE);
     
     if((self = [super init])) {
         guint nparams = 0;
@@ -597,71 +643,6 @@ _glib_objc_gobject_init_once_func(gpointer data)
 - (id)init
 {
     return [self initWithProperties:nil];
-}
-
-- (id)initCustomType:(NSString *)customTypeName
-      withProperties:(NSDictionary *)properties
-{
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    Class aClass = [self class];
-    NSString *fullTypeName;
-    GType custom_type = 0;
-    
-    _goc_return_val_if_fail(customTypeName && aClass, nil);
-    
-    fullTypeName = [@"__glib_objc__" stringByAppendingString:customTypeName];
-    
-    custom_type = g_type_from_name([fullTypeName UTF8String]);
-    
-    if(!custom_type) {
-        Class superclass;
-        GType parent_type;
-        GTypeQuery query;
-        GTypeInfo info;
-        
-        /* assume that the class we want to clone doesn't yet have a GType */
-        superclass = [aClass superclass];
-        
-        /* find the superclass' GType */
-        parent_type = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, superclass));
-        if(!parent_type) {
-            g_critical("%s: -initCustomType: passed superclass of type \"%s\", "
-                       "which is not a descendent of GLIBObject", PACKAGE,
-                       [[superclass description] UTF8String]);
-            [pool release];
-            return nil;
-        }
-        
-        /* sanity check, though this shouldn't happen */
-        if(G_TYPE_NONE == parent_type || G_TYPE_INVALID == parent_type) {
-            g_critical("%s: -initCustomType: passed superclass of type \"%s\", "
-                       "which has an invalid GType", PACKAGE,
-                       [[superclass description] UTF8String]);
-            [pool release];
-            return nil;
-        }
-        
-        g_type_query(parent_type, &query);
-        memset(&info, 0, sizeof(info));
-        info.class_size = query.class_size;
-        info.instance_size = query.instance_size;
-        
-        custom_type = g_type_register_static(parent_type,
-                                             [fullTypeName UTF8String],
-                                             &info, 0);
-        
-        g_type_set_qdata(custom_type, GLIB_OBJC_TYPE_MAP_QUARK, aClass);
-        g_hash_table_insert(__objc_class_map, aClass,
-                            GUINT_TO_POINTER(custom_type));
-    }
-    
-    return [self initWithProperties:properties];
-}
-
-- (id)initCustomType:(NSString *)customTypeName
-{
-    return [self initCustomType:customTypeName
-                 withProperties:nil];
 }
 
 - (void)dealloc
