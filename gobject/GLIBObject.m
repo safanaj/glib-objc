@@ -23,11 +23,13 @@
 
 #import "GLIBObject.h"
 #import "GLIBValue.h"
+#import "GLIBBoxedValue.h"
 #include "glib-objc-private.h"
 #include "ns-object-boxed.h"
 
 #define GLIB_OBJC_OBJECT_QUARK    (glib_objc_object_quark_get())
 #define GLIB_OBJC_TYPE_MAP_QUARK  (glib_objc_type_map_quark_get())
+#define GLIB_OBJC_PROP_ID_QUARK   (glib_objc_prop_id_quark_get())
 
 typedef struct
 {
@@ -92,7 +94,18 @@ glib_objc_type_map_quark_get()
     return __glib_objc_type_map_quark;
 }
 
-#if 0
+static GQuark
+glib_objc_prop_id_quark_get()
+{
+    static GQuark __glib_objc_prop_id_quark = 0;
+
+    if(!__glib_objc_prop_id_quark)
+        __glib_objc_prop_id_quark = g_quark_from_static_string("--glib-objc-prop-id");
+
+    return __glib_objc_prop_id_quark;
+}
+
+
 static GType
 glib_objc_gtype_from_signature(const char *objc_signature)
 {
@@ -130,6 +143,7 @@ glib_objc_gtype_from_signature(const char *objc_signature)
         return G_TYPE_INVALID;
 }
 
+#if 0
 static BOOL
 glib_objc_signatures_match(GType target_gtype,
                           const char *objc_signature)
@@ -188,7 +202,7 @@ glib_objc_nsobject_from_gvalue(const GValue *value)
         case G_TYPE_POINTER:
             return [NSValue valueWithPointer:g_value_get_pointer(value)];
         case G_TYPE_BOXED:
-            return [GLIBValue valueWithBoxed:g_value_get_boxed(value)];
+            return [GLIBBoxedValue valueWithBoxed:g_value_get_boxed(value)];
         
         default:
             if(G_TYPE_OBJECT == value_type || g_type_is_a(value_type, G_TYPE_OBJECT))
@@ -236,7 +250,7 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
             else if(!strcmp(typestr, @encode(guint)))
                 GV_SET(G_TYPE_FLAGS, GLIBValue, flagsValue, set_flags);
             else if(!strcmp(typestr, @encode(gpointer)))
-                GV_SET(G_TYPE_BOXED, GLIBValue, boxedValue, set_boxed);
+                GV_SET(G_TYPE_BOXED, GLIBBoxedValue, boxedValue, set_boxed);
             else {
                 g_critical("%s: nhandled GLIBValue signature \"%s\"", PACKAGE,
                            typestr);
@@ -482,6 +496,210 @@ objc_closure_finalize(gpointer data,
     [occlosure->invocation release];
 }
 
+static void
+glib_objc_gobject_set_property(GObject *obj,
+                               guint property_id,
+                               const GValue *value,
+                               GParamSpec *pspec)
+{
+    GLIBObject *objCObj = g_object_get_qdata(obj, GLIB_OBJC_OBJECT_QUARK);
+    id nsobject = nil;
+    NSAutoreleasePool *pool;
+
+    g_assert(objCObj);
+
+    if(![objCObj respondsToSelector:@selector(handleSetProperty:toValue:)]) {
+        g_critical("%s: ObjC object does not implement -handleSetProperty:toValue:",
+                   PACKAGE);
+        return;
+    }
+
+    nsobject = glib_objc_nsobject_from_gvalue(value);
+
+    pool = [[NSAutoreleasePool alloc] init];
+    [objCObj performSelector:@selector(handleSetProperty:toValue:)
+                  withObject:[NSString stringWithUTF8String:g_param_spec_get_name(pspec)]
+                  withObject:nsobject];
+    [pool release];
+}
+
+static void
+glib_objc_gobject_get_property(GObject *obj,
+                               guint property_id,
+                               GValue *value,
+                               GParamSpec *pspec)
+{
+    GLIBObject *objCObj = g_object_get_qdata(obj, GLIB_OBJC_OBJECT_QUARK);
+    id nsobject = nil;
+    NSAutoreleasePool *pool;
+
+    g_assert(objCObj);
+
+    if(![objCObj respondsToSelector:@selector(handleGetProperty:)]) {
+        g_critical("%s: ObjC object does not implement -handleGetProperty:",
+                   PACKAGE);
+        return;
+    }
+
+    pool = [[NSAutoreleasePool alloc] init];
+    nsobject = [objCObj performSelector:@selector(handleGetProperty:)
+                             withObject:[NSString stringWithUTF8String:g_param_spec_get_name(pspec)]];
+    [pool release];
+
+    glib_objc_gvalue_from_nsobject(value, nsobject, NO);
+}
+
+
+static void
+glib_objc_register_property(Class objCClass,
+                            GParamSpec *param_spec)
+{
+    GType gtype;
+    GObjectClass *gobject_class;
+    guint property_id;
+
+    gtype = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, objCClass));
+    if(!gtype) {
+        g_warning("%s: attempt to register property on class \"%s\", which is "
+                  "not derived from GLIBObject", PACKAGE,
+                  [[objCClass description] UTF8String]);
+        return;
+    }
+
+    gobject_class = g_type_class_peek_static(gtype);
+    if(!gobject_class)
+        gobject_class = g_type_class_ref(gtype);
+    g_assert(gobject_class);  /* i *think* this has to be valid here */
+
+    property_id = GPOINTER_TO_UINT(g_type_get_qdata(gtype,
+                                                    GLIB_OBJC_PROP_ID_QUARK));
+    if(!property_id) {
+        /* first property registered; connect stuff */
+        gobject_class->set_property = glib_objc_gobject_set_property;
+        gobject_class->get_property = glib_objc_gobject_get_property;
+    }
+    ++property_id;
+    g_type_set_qdata(gtype, GLIB_OBJC_PROP_ID_QUARK,
+                     GUINT_TO_POINTER(property_id + 1));
+
+    g_object_class_install_property(gobject_class, property_id, param_spec);
+}
+
+static void
+glib_objc_register_numeric_property(Class objCClass,
+                                    NSString *propertyName,
+                                    NSNumber *minValue,
+                                    NSNumber *maxValue,
+                                    NSNumber *defaultValue,
+                                    GParamFlags flags)
+{
+    const char *objc_sig, *prop_name = [propertyName UTF8String];
+    GType val_gtype;
+    GParamSpec *param_spec;
+
+    _goc_return_if_fail(defaultValue);
+
+    objc_sig = [defaultValue objCType];
+    val_gtype = glib_objc_gtype_from_signature(objc_sig);
+
+    switch(val_gtype) {
+        case G_TYPE_CHAR:
+            param_spec = g_param_spec_char(prop_name, prop_name, prop_name,
+                                           minValue ? [minValue charValue] : G_MININT8,
+                                           maxValue ? [maxValue charValue] : G_MAXINT8,
+                                           [defaultValue charValue],
+                                           flags);
+            break;
+        case G_TYPE_UCHAR:
+            param_spec = g_param_spec_uchar(prop_name, prop_name, prop_name,
+                                            minValue ? [minValue unsignedCharValue] : 0,
+                                            maxValue ? [maxValue unsignedCharValue] : G_MAXUINT8,
+                                            [defaultValue unsignedCharValue],
+                                            flags);
+            break;
+        case G_TYPE_BOOLEAN:
+            param_spec = g_param_spec_boolean(prop_name, prop_name, prop_name,
+                                              [defaultValue boolValue],
+                                              flags);
+            break;
+        case G_TYPE_INT:
+            param_spec = g_param_spec_int(prop_name, prop_name, prop_name,
+                                          minValue ? [minValue intValue] : G_MININT,
+                                          maxValue ? [maxValue intValue] : G_MAXINT,
+                                          [defaultValue intValue],
+                                          flags);
+            break;
+        case G_TYPE_UINT:
+            param_spec = g_param_spec_uint(prop_name, prop_name, prop_name,
+                                           minValue ? [minValue unsignedIntValue] : 0,
+                                           maxValue ? [maxValue unsignedIntValue] : G_MAXINT,
+                                           [defaultValue unsignedIntValue],
+                                           flags);
+            break;
+        case G_TYPE_LONG:
+            param_spec = g_param_spec_long(prop_name, prop_name, prop_name,
+                                           minValue ? [minValue longValue] : G_MINLONG,
+                                           maxValue ? [maxValue longValue] : G_MAXLONG,
+                                           [defaultValue longValue],
+                                           flags);
+            break;
+        case G_TYPE_ULONG:
+            param_spec = g_param_spec_ulong(prop_name, prop_name, prop_name,
+                                            minValue ? [minValue unsignedLongValue] : 0,
+                                            maxValue ? [maxValue unsignedLongValue] : G_MAXULONG,
+                                            [defaultValue unsignedLongValue],
+                                            flags);
+            break;
+        case G_TYPE_INT64:
+            param_spec = g_param_spec_int64(prop_name, prop_name, prop_name,
+                                            minValue ? [minValue longLongValue] : G_MININT64,
+                                            maxValue ? [maxValue longLongValue] : G_MAXINT64,
+                                            [defaultValue longLongValue],
+                                            flags);
+            break;
+        case G_TYPE_UINT64:
+            param_spec = g_param_spec_uint64(prop_name, prop_name, prop_name,
+                                             minValue ? [minValue unsignedLongLongValue] : 0,
+                                             maxValue ? [maxValue unsignedLongLongValue] : G_MAXUINT64,
+                                             [defaultValue unsignedLongLongValue],
+                                             flags);
+            break;
+        case G_TYPE_ENUM:
+            param_spec = g_param_spec_enum(prop_name, prop_name, prop_name,
+                                           G_TYPE_ENUM,  /* FIXME */
+                                           [(GLIBValue *)defaultValue enumValue],
+                                           flags);
+            break;
+        case G_TYPE_FLAGS:
+            param_spec = g_param_spec_flags(prop_name, prop_name, prop_name,
+                                            G_TYPE_FLAGS,  /* FIXME */
+                                            [(GLIBValue *)defaultValue flagsValue],
+                                            flags);
+            break;
+        case G_TYPE_FLOAT:
+            param_spec = g_param_spec_float(prop_name, prop_name, prop_name,
+                                            minValue ? [minValue floatValue] : G_MINFLOAT,
+                                            maxValue ? [maxValue floatValue] : G_MAXFLOAT,
+                                            [defaultValue floatValue],
+                                            flags);
+            break;
+        case G_TYPE_DOUBLE:
+            param_spec = g_param_spec_double(prop_name, prop_name, prop_name,
+                                             minValue ? [minValue doubleValue] : G_MINDOUBLE,
+                                             maxValue ? [maxValue doubleValue] : G_MAXDOUBLE,
+                                             [defaultValue doubleValue],
+                                             flags);
+            break;
+        default:
+            g_critical("%s: Unable to determine numeric type of %s",
+                       PACKAGE, [[defaultValue description] UTF8String]);
+            return;
+    }
+
+    glib_objc_register_property(objCClass, param_spec);
+}
+
+
 
 @implementation GLIBObject
 
@@ -652,6 +870,37 @@ _glib_objc_gobject_init_once_func(gpointer data)
     [_user_data release];
     
     [super dealloc];
+}
+
++ (void)registerProperty:(NSString *)propertyName
+              ofObjCType:(Class)propertyType
+               withFlags:(GParamFlags)flags
+{
+    const char *prop_name = [propertyName UTF8String];
+    glib_objc_register_property([self class],
+                                g_param_spec_boxed(prop_name,
+                                                   prop_name,
+                                                   prop_name,
+                                                   GOBJC_TYPE_NSOBJECT,
+                                                   flags));
+}
+
++ (void)registerProperty:(NSString *)propertyName
+        withMinimumValue:(NSNumber *)minValue
+        withMaximumValue:(NSNumber *)maxValue
+        withDefaultValue:(NSNumber *)defaultValue
+               withFlags:(GParamFlags)flags
+{
+    glib_objc_register_numeric_property([self class], propertyName, minValue,
+                                        maxValue, defaultValue, flags);
+}
+
++ (void)registerProperty:(NSString *)propertyName
+        withDefaultValue:(NSNumber *)defaultValue
+               withFlags:(GParamFlags)flags
+{
+    glib_objc_register_numeric_property([self class], propertyName, NULL, NULL,
+                                        defaultValue, flags);
 }
 
 - (void)setProperty:(NSString *)propertyName

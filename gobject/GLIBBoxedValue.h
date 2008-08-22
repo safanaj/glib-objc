@@ -17,33 +17,28 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __GLIB_OBJC_VALUE_H__
-#define __GLIB_OBJC_VALUE_H__
+#ifndef __GLIB_OBJC_BOXED_VALUE_H__
+#define __GLIB_OBJC_BOXED_VALUE_H__
 
 #if !defined(GLIB_OBJC_COMPILATION) && !defined(__IN_GLIB_OBJC_H)
-#error "Do not include GLIBValue.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
+#error "Do not include GLIBBoxedValue.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
 #endif
 
 #import <Foundation/Foundation.h>
 
-@interface GLIBValue : NSNumber
+@interface GLIBBoxedValue : NSValue
 {
 @private
-    unsigned int _valueType;
-    
-    int _enumValue;
-    unsigned int _flagsValue;
+    gpointer _boxedValue;
 }
 
-+ (id)valueWithEnum:(int)enumValue;
-+ (id)valueWithFlags:(unsigned int)flagsValue;
++ (id)valueWithBoxed:(gpointer)boxedValue;
 
-- (id)initWithEnum:(int)enumValue;
-- (id)initWithFlags:(unsigned int)flagsValue;
+- (id)initWithBoxed:(gpointer)boxedValue;
 
-- (int)enumValue;
-- (unsigned int)flagsValue;
+- (gpointer)boxedValue;
 
 @end
 
-#endif  /* __GLIB_OBJC_VALUE_H__ */
+#endif  /* __GLIB_OBJC_BOXED_VALUE_H__ */
+

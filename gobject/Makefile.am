@@ -2,6 +2,7 @@ lib_LTLIBRARIES = libgobject-objc-2.0.la
 
 gobjectobjcincludedir = $(includedir)/glib-objc-2.0/glib-objc
 gobjectobjcinclude_HEADERS = \
+	GLIBBoxedValue.h \
 	GLIBObject.h \
 	GLIBValue.h \
 	glib-objc.h \
@@ -9,6 +10,7 @@ gobjectobjcinclude_HEADERS = \
 
 libgobject_objc_2_0_la_SOURCES = \
 	$(gobjectobjcinclude_HEADERS) \
+	GLIBBoxedValue.m \
 	GLIBObject.m \
 	GLIBValue.m \
 	glib-objc-private.h \

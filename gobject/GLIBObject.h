@@ -75,6 +75,30 @@
 - (id)initWithProperties:(NSDictionary *)properties;
 /* - (id)init works too, of course */
 
+/* any class that registers properties MUST implement:
+ * - (void)handleSetProperty:(NSString *)propertyName
+ *                   toValue:(id)value;
+ * - (id)handleGetProperty:(NSString *)propertyName;
+ */
+/* this can be used to register a property where the value is an ObjC
+ * class type.  the class type must be a descendent of GLIBObject and
+ * should not be a wrapped GObject type */
++ (void)registerProperty:(NSString *)propertyName
+              ofObjCType:(Class)propertyType
+               withFlags:(GParamFlags)flags;
+/* these can be used to register a property where the value is a
+ * primitive numeric type.  the function will guess the correct gtype
+ * based on the data contained in minValue, maxValue, or defaultValue
+ */
++ (void)registerProperty:(NSString *)propertyName
+        withMinimumValue:(NSNumber *)minValue
+        withMaximumValue:(NSNumber *)maxValue
+        withDefaultValue:(NSNumber *)defaultValue
+               withFlags:(GParamFlags)flags;
++ (void)registerProperty:(NSString *)propertyName
+        withDefaultValue:(NSNumber *)defaultValue
+               withFlags:(GParamFlags)flags;
+
 - (void)setProperty:(NSString *)propertyName
             toValue:(id)value;
 - (id)getProperty:(NSString *)propertyName;

@@ -17,33 +17,42 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __GLIB_OBJC_VALUE_H__
-#define __GLIB_OBJC_VALUE_H__
-
-#if !defined(GLIB_OBJC_COMPILATION) && !defined(__IN_GLIB_OBJC_H)
-#error "Do not include GLIBValue.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
+#ifdef HAVE_CONFIG_H
+#include <config.h>
 #endif
 
-#import <Foundation/Foundation.h>
+#include <glib.h>
 
-@interface GLIBValue : NSNumber
+#import "GLIBBoxedValue.h"
+
+@implementation GLIBBoxedValue
+
++ (id)valueWithBoxed:(gpointer)boxedValue
 {
-@private
-    unsigned int _valueType;
-    
-    int _enumValue;
-    unsigned int _flagsValue;
+    return [[[GLIBBoxedValue alloc] initWithBoxed:boxedValue] autorelease];
 }
 
-+ (id)valueWithEnum:(int)enumValue;
-+ (id)valueWithFlags:(unsigned int)flagsValue;
+- (id)initWithBoxed:(gpointer)boxedValue
+{
+    if((self = [super init]))
+        _boxedValue = boxedValue;
+    
+    return self;
+}
 
-- (id)initWithEnum:(int)enumValue;
-- (id)initWithFlags:(unsigned int)flagsValue;
+- (id)init
+{
+    return [self initWithBoxed:nil];
+}
 
-- (int)enumValue;
-- (unsigned int)flagsValue;
+- (gpointer)boxedValue
+{
+    return _boxedValue;
+}
+
+- (const char *)objCType
+{
+    return @encode(gpointer);
+}
 
 @end
-
-#endif  /* __GLIB_OBJC_VALUE_H__ */

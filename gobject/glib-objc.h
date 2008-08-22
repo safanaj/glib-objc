@@ -23,6 +23,7 @@
 #define __IN_GLIB_OBJC_H
 
 #include <glib-objc/GLIBObject.h>
+#include <glib-objc/GLIBBoxedValue.h>
 #include <glib-objc/GLIBValue.h>
 
 #include <glib-objc/ns-object-boxed.h>
