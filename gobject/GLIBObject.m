@@ -881,6 +881,67 @@ disconnect_signals_ht_foreach(gpointer key,
                                 &mdata);
 }
 
+- (void)emitSignal:(NSString *)detailedSignal
+{
+    g_signal_emit_by_name(_gobject_ptr, [detailedSignal UTF8String], NULL);
+}
+
+- (void)emitSignal:(NSString *)detailedSignal
+ withReturnAndArgs:(id)returnVal,...
+{
+    guint signal_id;
+    GQuark detail;
+    va_list var_args;
+
+    if(!g_signal_parse_name([detailedSignal UTF8String],
+                            G_OBJECT_TYPE(_gobject_ptr),
+                            &signal_id, &detail, TRUE))
+    {
+        g_warning("%s: attempt to emit nonexistent signal %s on object of "
+                  "type %s", PACKAGE, [detailedSignal UTF8String],
+                  [[self description] UTF8String]);
+        return;
+    }
+
+    va_start(var_args, returnVal);
+    g_signal_emit_valist(_gobject_ptr, signal_id, detail, var_args);
+    va_end(var_args);
+}
+
+- (void)emitSignalById:(gulong)signalId
+{
+    [self emitSignalById:signalId withDetail:nil];
+}
+
+- (void)emitSignalById:(gulong)signalId
+     withReturnAndArgs:(id)returnVal,...
+{
+    va_list var_args;
+
+    va_start(var_args, returnVal);
+    g_signal_emit_valist(_gobject_ptr, signalId, 0, var_args);
+    va_end(var_args);
+}
+
+- (void)emitSignalById:(gulong)signalId
+            withDetail:(NSString *)detail
+{
+    GQuark detailQ = g_quark_from_string([detail UTF8String]);
+    g_signal_emit(_gobject_ptr, signalId, detailQ, NULL);
+}
+
+- (void)emitSignalById:(gulong)signalId
+            withDetail:(NSString *)detail
+     withReturnAndArgs:(id)returnVal,...
+{
+    va_list var_args;
+    GQuark detailQ = g_quark_from_string([detail UTF8String]);
+
+    va_start(var_args, returnVal);
+    g_signal_emit_valist(_gobject_ptr, signalId, detailQ, var_args);
+    va_end(var_args);
+}
+
 + (guint)registerNewSignal:(NSString *)signalName
                  withFlags:(GSignalFlags)flags
         withDefaultHandler:(SEL)defaultHandler

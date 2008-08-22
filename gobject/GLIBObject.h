@@ -96,6 +96,18 @@
               fromObject:(id)object
             withSelector:(SEL)selector;
 
+- (void)emitSignal:(NSString *)detailedSignal;
+- (void)emitSignal:(NSString *)detailedSignal
+ withReturnAndArgs:(id)returnVal,...;
+- (void)emitSignalById:(gulong)signalId;
+- (void)emitSignalById:(gulong)signalId
+     withReturnAndArgs:(id)returnVal,...;
+- (void)emitSignalById:(gulong)signalId
+            withDetail:(NSString *)detail;
+- (void)emitSignalById:(gulong)signalId
+            withDetail:(NSString *)detail
+     withReturnAndArgs:(id)returnVal,...;
+
 + (guint)registerNewSignal:(NSString *)signalName
                  withFlags:(GSignalFlags)flags
         withDefaultHandler:(SEL)defaultHandler
