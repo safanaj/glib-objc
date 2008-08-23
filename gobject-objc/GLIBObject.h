@@ -152,8 +152,8 @@
 - (void)notify:(NSString *)propertyName;
 
 - (void)setData:(id <NSObject>)data
-         forKey:(id <NSObject>)key;
-- (id)getDataForKey:(id <NSObject>)key;
+         forKey:(NSString *)key;
+- (id)getDataForKey:(NSString *)key;
 
 
 #if 0  /* do we really want to support these? */

@@ -354,6 +354,12 @@ glib_objc_gvalue_from_nsobject(GValue *gvalue,
 #undef GV_SET
 }
 
+static void
+glib_objc_nsobject_release(NSObject *nsobject)
+{
+    [nsobject release];
+}
+
 static GType
 glib_objc_get_custom_type(Class aClass)
 {
@@ -1299,17 +1305,15 @@ disconnect_signals_ht_foreach(gpointer key,
 }
 
 - (void)setData:(id <NSObject>)data
-         forKey:(id <NSObject>)key
+         forKey:(NSString *)key
 {
-    if(data)
-        [_user_data setObject:data forKey:key];
-    else
-        [_user_data removeObjectForKey:key];
+    g_object_set_data_full(_gobject_ptr, [key UTF8String], [data retain],
+                           (GDestroyNotify)glib_objc_nsobject_release);
 }
 
-- (id)getDataForKey:(id <NSObject>)key
+- (id)getDataForKey:(NSString *)key
 {
-    return [_user_data objectForKey:key];
+    return g_object_get_data(_gobject_ptr, [key UTF8String]);
 }
 
 #if 0
