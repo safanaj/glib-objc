@@ -1,0 +1,13 @@
+* figure out how overriding vfuncs will work -- will wrappers have
+  to do this more or less manually?  maybe -- wappers could have empty impl
+  that fwds to the gobject; objc classes will need to chain up -- but how will
+  gobject C code know how to get to the objc vfuncs (think setting the
+  default signal handler in a subclass)?
+* figure out how to implement GInterfaces in objc code
+* reexamine the -setData:forKey: and getDataForKey: API
+* do we need to implement wrappers for _set/get_qdata(), _weak_retain/release(),
+  _toggle_ref/unref()?
+* enum/flags gtype registration?  or just leave them generic and use GLIBValue's
+  enum/flags support?
+* maybe expose some useful stuff like _gvalue_from_nsobject() and
+  _nsobject_from_gvalue()
