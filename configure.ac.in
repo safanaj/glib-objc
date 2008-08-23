@@ -6,7 +6,8 @@ dnl Copyright (c) 2008 Brian Tarricone <bjt23@cornell.edu>
 dnl
 
 dnl version info
-m4_define([libgobject_verinfo], [0:0:0])
+m4_define([libgobject_objc_verinfo], [0:0:0])
+m4_define([libgobject_objc_api_version], [2.0])
 m4_define([go_version_major], [0])
 m4_define([go_version_minor], [1])
 m4_define([go_version_micro], [0])
@@ -40,9 +41,11 @@ AC_HEADER_STDC
 
 dnl version information
 GO_VERSION=go_version
-LIBGOBJECT_VERINFO=libgobject_verinfo
+LIBGOBJECT_OBJC_VERINFO=libgobject_objc_verinfo
+LIBGOBJECT_OBJC_API_VERSION=libgobject_objc_api_version
 AC_SUBST(GO_VERSION)
-AC_SUBST(LIBGOBJECT_VERINFO)
+AC_SUBST(LIBGOBJECT_OBJC_VERINFO)
+AC_SUBST(LIBGOBJECT_OBJC_API_VERSION)
 
 dnl required
 PKG_CHECK_MODULES([GOBJECT], [gobject-2.0 >= 2.12.0], , [AC_MSG_ERROR([
@@ -142,6 +145,7 @@ AC_MSG_RESULT([$enable_debug])
 
 AC_OUTPUT([
 Makefile
-gobject/Makefile
-gobject/gobject-objc-2.0.pc
+gobject-objc/Makefile
+gobject-objc/gobject-objc-2.0.pc
+tests/Makefile
 ])

@@ -1,2 +1,3 @@
 SUBDIRS = \
-	gobject
+	gobject-objc \
+    tests

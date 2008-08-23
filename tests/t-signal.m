@@ -17,17 +17,38 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __GLIB_OBJC_H__
-#define __GLIB_OBJC_H__
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
-#define __IN_GLIB_OBJC_H
+#include "gobject-objc/glib-objc.h"
 
-#include <glib-objc/GLIBObject.h>
-#include <glib-objc/GLIBBoxedValue.h>
-#include <glib-objc/GLIBValue.h>
+@interface GObjCTest : GLIBObject
+{
 
-#include <glib-objc/ns-object-boxed.h>
+}
 
-#undef __IN_GLIB_OBJC_H
+@end
 
-#endif  /* __GLIB_OBJC_H__ */
+@implementation GObjCTest
+
+@end
+
+
+int
+main(int argc,
+     char **argv)
+{
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	GObjCTest *obj;
+
+	obj = [[GObjCTest alloc] init];
+	g_assert(obj);
+
+	g_print("%s\n", [[obj description] UTF8String]);
+
+	[obj release];
+	[pool release];
+
+	return 0;
+}
