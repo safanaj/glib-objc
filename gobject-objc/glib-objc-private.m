@@ -25,7 +25,7 @@
 #include "GLIBValue.h"
 #include "GLIBBoxedValue.h"
 #include "ns-object-boxed.h"
-#include "GLIBOBject.h"
+#include "GLIBObject.h"
 
 GType
 _glib_objc_gtype_from_signature(const char *objc_signature)
