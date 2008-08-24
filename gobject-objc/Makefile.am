@@ -16,6 +16,7 @@ libgobject_objc_2_0_la_SOURCES = \
 	GLIBBoxedValue.m \
 	GLIBObject.m \
 	GLIBValue.m \
+	glib-objc-private.m \
 	glib-objc-private.h \
 	ns-object-boxed.m
 

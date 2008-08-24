@@ -20,7 +20,10 @@
 #ifndef __GLIB_OBJC_PRIVATE_H__
 #define __GLIB_OBJC_PRIVATE_H__
 
-#include <glib.h>
+#include <glib-object.h>
+#import <Foundation/Foundation.h>
+
+G_BEGIN_DECLS
 
 #if defined(__NetBSD__) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
 #define __DBG_FUNC__    __func__
@@ -57,5 +60,19 @@
     g_warning("%s(): %s", __DBG_FUNC__, msg); \
     return (val); \
 } G_STMT_END
+
+
+GType _glib_objc_gtype_from_signature(const char *objc_signature);
+#if 0
+BOOL _glib_objc_signatures_match(GType target_gtype,
+                                 const char *objc_signature);
+#endif
+id <NSObject> _glib_objc_nsobject_from_gvalue(const GValue *value);
+BOOL _glib_objc_gvalue_from_nsobject(GValue *gvalue,
+                                     const id <NSObject> nsobject,
+                                     BOOL gvalue_needs_init);
+
+
+G_END_DECLS
 
 #endif  /* __GLIB_OBJC_PRIVATE_H__ */
