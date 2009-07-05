@@ -1,9 +1,9 @@
 lib_LTLIBRARIES = libgobject-objc-2.0.la
 
-gobjectobjcmainincludedir = $(includedir)/glib-objc-$(LIBGOBJECT_OBJC_API_VERSION)
-gobjectobjcmaininclude_HEADERS = \
-	glib-objc.h
-gobjectobjcincludedir = $(gobjectobjcmainincludedir)/gobject-objc
+glibobjcmainincludedir = $(includedir)/glib-objc-$(GLIB_OBJC_API_VERSION)
+glibobjcmaininclude_HEADERS = \
+	gobject-objc.h
+gobjectobjcincludedir = $(glibobjcmainincludedir)/gobject-objc
 gobjectobjcinclude_HEADERS = \
 	GLIBBoxedValue.h \
 	GLIBObject.h \

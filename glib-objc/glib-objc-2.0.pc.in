@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+libglib_objc_api_version=@GLIB_OBJC_API_VERSION@
+
+Name: Glib-ObjC
+Description: Objective-C bindings for Glib
+Version: @VERSION@
+Requires: glib-2.0
+Libs: -lglib-objc-${libglib_objc_api_version}
+Cflags: -I${includedir}/glib-objc-${libglib_objc_api_version}
