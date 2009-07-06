@@ -24,10 +24,10 @@ fi
 sed "s/@REVISION@/$REVISION/g" <configure.ac.in >>configure.ac
 
 run_first_found "glibtoolize libtoolize" "--force --copy --automake" &&
-run_first_found "aclocal-1.10 aclocal-1.9 aclocal-1.8 aclocal-1.7 aclocal" "$ACLOCAL_FLAGS" &&
-run_first_found "autoheader-2.61 autoheader-2.60 autoheader-2.59 autoheader-2.53 autoheader" &&
-run_first_found "automake-1.10 automake-1.9 automake-1.8 automake-1.7 automake" "--force-missing --add-missing --copy --gnu $AM_FLAGS" &&
-run_first_found "autoconf-2.61 autoconf-2.60 autoconf-2.59 autoconf-2.32 autoconf" "$AC_FLAGS" || exit 1
+run_first_found "aclocal-1.11 aclocal-1.10 aclocal-1.9 aclocal-1.8 aclocal-1.7 aclocal" "$ACLOCAL_FLAGS" &&
+run_first_found "autoheader-2.63 autoheader-2.62 autoheader-2.61 autoheader-2.60 autoheader-2.59 autoheader-2.53 autoheader" &&
+run_first_found "automake-1.11 automake-1.10 automake-1.9 automake-1.8 automake-1.7 automake" "--force-missing --add-missing --copy --gnu $AM_FLAGS" &&
+run_first_found "autoconf-2.63 autoconf-2.62 autoconf-2.61 autoconf-2.60 autoconf-2.59 autoconf-2.32 autoconf" "$AC_FLAGS" || exit 1
 
 if test "x$NOCONFIGURE" = "x"; then
     CONFIGURE_FLAGS="--enable-maintainer-mode $@"
