@@ -24,7 +24,6 @@
 #include <glib.h>
 
 #import "GOCHashTable.h"
-#import "GOCNumber.h"
 
 @implementation GOCHashTableIter
 
@@ -198,14 +197,9 @@ ght_foreach_remove(gpointer key,
                    gpointer user_data)
 {
     GHTForeachData *fedata = user_data;
-    id (*cb)(id,SEL,id,id,id) = (id (*)(id,SEL,id,id,id))fedata->callback;
-    id ret;
+    BOOL (*cb)(id,SEL,id,id,id) = (BOOL (*)(id,SEL,id,id,id))fedata->callback;
 
-    ret = cb(fedata->object, fedata->selector, (id)key, (id)value, fedata->userData);
-    if(!ret || [ret class] != [GOCNumber class])
-        return FALSE;
-    else
-        return [(GOCNumber *)ret boolValue];
+    return cb(fedata->object, fedata->selector, (id)key, (id)value, fedata->userData);
 }
 
 - (unsigned int)removeBySelector:(SEL)selector

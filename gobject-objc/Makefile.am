@@ -7,6 +7,7 @@ gobjectobjcincludedir = $(glibobjcmainincludedir)/gobject-objc
 gobjectobjcinclude_HEADERS = \
 	GOCBoxedValue.h \
 	GOCObject.h \
+	GOCNumber.h \
 	GOCValue.h
 
 libgobject_objc_2_0_la_SOURCES = \
@@ -14,6 +15,7 @@ libgobject_objc_2_0_la_SOURCES = \
 	$(gobjectobjcinclude_HEADERS) \
 	GOCBoxedValue.m \
 	GOCObject.m \
+	GOCNumber.m \
 	GOCValue.m \
 	glib-objc-private.m \
 	glib-objc-private.h

@@ -27,7 +27,6 @@
 #import <glib-objc/GOCHashTable.h>
 #import <glib-objc/GOCIterable.h>
 #import <glib-objc/GOCList.h>
-#import <glib-objc/GOCNumber.h>
 #import <glib-objc/GOCObjectBase.h>
 
 #undef __IN_GLIB_OBJC_H
