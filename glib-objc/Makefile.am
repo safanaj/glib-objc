@@ -10,6 +10,7 @@ glibobjcinclude_HEADERS = \
 	GOCHashTable.h \
 	GOCIterable.h \
 	GOCList.h \
+	GOCMain.h \
 	GOCObjectBase.h
 
 libglib_objc_2_0_la_SOURCES = \
@@ -17,10 +18,12 @@ libglib_objc_2_0_la_SOURCES = \
 	$(glibobjcinclude_HEADERS) \
 	GOCHashTable.m \
 	GOCList.m \
+	GOCMain.m \
 	GOCObjectBase.m
 
 libglib_objc_2_0_la_CFLAGS = \
 	-DGLIB_OBJC_COMPILATION \
+	-I$(top_srcdir)/common \
 	$(GLIB_CFLAGS)
 
 libglib_objc_2_0_la_OBJCFLAGS = $(libglib_objc_2_0_la_CFLAGS)
