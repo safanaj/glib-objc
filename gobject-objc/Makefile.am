@@ -24,6 +24,7 @@ libgobject_objc_2_0_la_SOURCES = \
 
 libgobject_objc_2_0_la_CFLAGS = \
 	-DGLIB_OBJC_COMPILATION \
+	-I$(top_srcdir)/common \
 	$(GOBJECT_CFLAGS) \
 	$(LIBFFI_CFLAGS)
 

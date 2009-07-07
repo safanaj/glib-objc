@@ -17,23 +17,25 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __OBCJ_GLIB_OBJECT_H__
-#define __OBJC_GLIB_OBJECT_H__
+#ifndef __GOC_OBJECT_H__
+#define __GOC_OBJECT_H__
 
 #if !defined(GLIB_OBJC_COMPILATION) && !defined(__IN_GLIB_OBJC_H)
-#error "Do not include GLIBObject.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
+#error "Do not include GOCObject.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
 #endif
 
-#import <Foundation/Foundation.h>
 #include <glib-object.h>
 
-@interface GLIBObject : NSObject
+#import <glib-objc/GOCObjectBase.h>
+
+typedef struct _GOCObjectPriv  GOCObjectPriv;
+
+@interface GOCObject : GOCObjectBase
 {
-@protected
+  @protected
     GObject *_gobject_ptr;
-@private
-    GHashTable *_closures;
-    NSMutableDictionary *_user_data;
+  @private
+    GOCObjectPriv *priv;
 }
 
 /* used to map a native C GType to an ObjC class */
@@ -193,4 +195,4 @@
 
 @end
 
-#endif  /* __OBJC_GLIB_OBJECT_H__ */
+#endif  /* __GOC_OBJECT_H__ */

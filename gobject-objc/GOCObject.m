@@ -21,15 +21,22 @@
 #include <config.h>
 #endif
 
-#import "GLIBObject.h"
-#import "GLIBValue.h"
-#import "GLIBBoxedValue.h"
-#include "glib-objc-private.h"
-#include "ns-object-boxed.h"
+#import <glib-objc/glib-objc.h>
 
-#define GLIB_OBJC_OBJECT_QUARK    (glib_objc_object_quark_get())
-#define GLIB_OBJC_TYPE_MAP_QUARK  (glib_objc_type_map_quark_get())
-#define GLIB_OBJC_PROP_ID_QUARK   (glib_objc_prop_id_quark_get())
+#import "GOCObject.h"
+#import "GOCValue.h"
+#import "GOCBoxedValue.h"
+#include "gobject-objc-private.h"
+#include "goc-private.h"
+
+#define GOC_OBJECT_QUARK    (gobject_objc_object_quark_get())
+#define GOC_TYPE_MAP_QUARK  (gobject_objc_type_map_quark_get())
+#define GOC_PROP_ID_QUARK   (gobject_objc_prop_id_quark_get())
+
+struct _GOCObjectPriv
+{
+    GHashTable *closures;
+};
 
 typedef struct
 {
@@ -38,7 +45,7 @@ typedef struct
     guint signal_id;
     GQuark detail;
     BOOL after;
-    NSInvocation *invocation;
+    NSInvocation *invocation;  /* FIXME: no-ns */
 } ObjCClosure;
 
 typedef struct
@@ -73,47 +80,41 @@ static GHashTable *__objc_class_map = NULL;
 
 
 static GQuark
-glib_objc_object_quark_get()
+gobject_objc_object_quark_get()
 {
-    static GQuark __glib_objc_object_quark = 0;
+    static GQuark __gobject_objc_object_quark = 0;
 
-    if(!__glib_objc_object_quark)
-        __glib_objc_object_quark = g_quark_from_static_string("--glib-objc-object");
+    if(!__gobject_objc_object_quark)
+        __gobject_objc_object_quark = g_quark_from_static_string("--glib-objc-object");
     
-    return __glib_objc_object_quark;
+    return __gobject_objc_object_quark;
 }
 
 static GQuark
-glib_objc_type_map_quark_get()
+gobject_objc_type_map_quark_get()
 {
-    static GQuark __glib_objc_type_map_quark = 0;
+    static GQuark __gobject_objc_type_map_quark = 0;
 
-    if(!__glib_objc_type_map_quark)
-        __glib_objc_type_map_quark = g_quark_from_static_string("--glib-objc-type-map");
+    if(!__gobject_objc_type_map_quark)
+        __gobject_objc_type_map_quark = g_quark_from_static_string("--glib-objc-type-map");
     
-    return __glib_objc_type_map_quark;
+    return __gobject_objc_type_map_quark;
 }
 
 static GQuark
-glib_objc_prop_id_quark_get()
+gobject_objc_prop_id_quark_get()
 {
-    static GQuark __glib_objc_prop_id_quark = 0;
+    static GQuark __gobject_objc_prop_id_quark = 0;
 
-    if(!__glib_objc_prop_id_quark)
-        __glib_objc_prop_id_quark = g_quark_from_static_string("--glib-objc-prop-id");
+    if(!__gobject_objc_prop_id_quark)
+        __gobject_objc_prop_id_quark = g_quark_from_static_string("--glib-objc-prop-id");
 
-    return __glib_objc_prop_id_quark;
+    return __gobject_objc_prop_id_quark;
 }
 
-
-static void
-glib_objc_nsobject_release(NSObject *nsobject)
-{
-    [nsobject release];
-}
 
 static GType
-glib_objc_get_custom_type(Class aClass)
+gobject_objc_get_custom_type(Class aClass)
 {
     GType custom_type = 0;
 
@@ -123,8 +124,8 @@ glib_objc_get_custom_type(Class aClass)
                                                        aClass));
 
     if(!custom_type) {
-        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-        NSString *fullTypeName;
+        GOCAutoreleasePool *pool = [[GOCAutoreleasePool alloc] init];
+        NSString *fullTypeName;  /* FIXME: no-ns */
         Class superclass;
         GType parent_type;
         GTypeQuery query;
@@ -134,15 +135,15 @@ glib_objc_get_custom_type(Class aClass)
         superclass = [aClass superclass];
         if(!superclass) {
             g_critical("%s: failed to create custom type for class \"%s\", as "
-                       "it is not a descendent of GLIBObject", PACKAGE,
+                       "it is not a descendent of GOCObject", PACKAGE,
                        [[superclass description] UTF8String]);
-            [pool release];
+            [pool unref];
             return G_TYPE_INVALID;
         }
 
-        parent_type = glib_objc_get_custom_type(superclass);
+        parent_type = gobject_objc_get_custom_type(superclass);
         if(!parent_type) {
-            [pool release];
+            [pool unref];
             return G_TYPE_INVALID;
         }
         g_assert(parent_type != G_TYPE_INVALID && parent_type != G_TYPE_NONE);
@@ -152,96 +153,96 @@ glib_objc_get_custom_type(Class aClass)
         info.class_size = query.class_size;
         info.instance_size = query.instance_size;
 
-        fullTypeName = [@"__glib_objc__" stringByAppendingString:[aClass description]];
+        fullTypeName = [@"__gobject_objc__" stringByAppendingString:[aClass description]];
         custom_type = g_type_register_static(parent_type,
                                              [fullTypeName UTF8String],
                                              &info, 0);
 
-        g_type_set_qdata(custom_type, GLIB_OBJC_TYPE_MAP_QUARK, aClass);
+        g_type_set_qdata(custom_type, GOC_TYPE_MAP_QUARK, aClass);
         g_hash_table_insert(__objc_class_map, aClass,
                             GUINT_TO_POINTER(custom_type));
 
-        [pool release];
+        [pool unref];
     }
 
     return custom_type;
 }
 
 static void
-glib_objc_marshal_signal(GClosure *closure,
-                         GValue *return_value,
-                         guint n_param_values,
-                         const GValue *param_values,
-                         gpointer invocation_hint,
-                         gpointer marshal_data)
+gobject_objc_marshal_signal(GClosure *closure,
+                           GValue *return_value,
+                           guint n_param_values,
+                           const GValue *param_values,
+                           gpointer invocation_hint,
+                           gpointer marshal_data)
 {
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    GOCAutoreleasePool *pool = [[GOCAutoreleasePool alloc] init];
     ObjCClosure *occlosure = (ObjCClosure *)closure;
-    NSInvocation *invoc = occlosure->invocation;
+    NSInvocation *invoc = occlosure->invocation;  /* FIXME: no-ns */
     id param;
     int i;
     gboolean clear_target = FALSE;
     
     for(i = 0; i < n_param_values; ++i) {
-        param = _glib_objc_nsobject_from_gvalue(&param_values[i]);
+        param = _gobject_objc_nsobject_from_gvalue(&param_values[i]);  /* FIXME: no-ns */
         if(!param) {
             g_critical("%s: couldn't marshal value of type \"%s\"", PACKAGE,
                        G_VALUE_TYPE_NAME(&param_values[i]));
         }
         
-        [invoc setArgument:param atIndex:i+2];
+        [invoc setArgument:param atIndex:i+2];  /* FIXME: no-ns */
     }
 
     if(![invoc target]) {
         /* this is to handle class closures */
         id target = nil;
-        [invoc getArgument:&target atIndex:2];
-        [invoc setTarget:target];
+        [invoc getArgument:&target atIndex:2];  /* FIXME: no-ns */
+        [invoc setTarget:target];  /* FIXME: no-ns */
         clear_target = TRUE;
     }
     
-    [invoc invoke];
+    [invoc invoke];  /* FIXME: no-ns */
     
     if(G_VALUE_TYPE(return_value)) {
         id ret = nil;
-        [invoc getReturnValue:(void *)&ret];
-        _glib_objc_gvalue_from_nsobject(return_value, ret, FALSE);
+        [invoc getReturnValue:(void *)&ret];  /* FIXME: no-ns */
+        _gobject_objc_gvalue_from_nsobject(return_value, ret, FALSE);  /* FIXME: no-ns */
     }
 
     if(clear_target)
-        [invoc setTarget:nil];
+        [invoc setTarget:nil];  /* FIXME: no-ns */
     
-    [pool release];
+    [pool unref];  /* FIXME: no-ns */
 }
 
 static gboolean
-glib_objc_accumulate_signal(GSignalInvocationHint *ihint,
-                            GValue *return_accu,
-                            const GValue *handler_return,
-                            gpointer data)
+gobject_objc_accumulate_signal(GSignalInvocationHint *ihint,
+                              GValue *return_accu,
+                              const GValue *handler_return,
+                              gpointer data)
 {
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    GOCAutoreleasePool *pool = [[GOCAutoreleasePool alloc] init];
     ObjCSignalAccumData *adata = data;
     id returnAccu = nil, handlerReturn;
-    NSMethodSignature *msig;
-    NSInvocation *invoc;
+    NSMethodSignature *msig;  /* FIXME: no-ns */
+    NSInvocation *invoc;  /* FIXME: no-ns */
     BOOL ret = NO;
 
-    msig = [adata->target_class instanceMethodSignatureForSelector:adata->selector];
-    invoc = [NSInvocation invocationWithMethodSignature:msig];
+    msig = [adata->target_class instanceMethodSignatureForSelector:adata->selector];  /* FIXME: no-ns */
+    invoc = [NSInvocation invocationWithMethodSignature:msig];  /* FIXME: no-ns */
 
-    [invoc setTarget:adata->target_class];
-    [invoc setSelector:adata->selector];
-    [invoc setArgument:&returnAccu atIndex:2];
-    handlerReturn = _glib_objc_nsobject_from_gvalue(handler_return);
-    [invoc setArgument:&handlerReturn atIndex:3];
+    [invoc setTarget:adata->target_class];  /* FIXME: no-ns */
+    [invoc setSelector:adata->selector];  /* FIXME: no-ns */
+    [invoc setArgument:&returnAccu atIndex:2];  /* FIXME: no-ns */
+    handlerReturn = _gobject_objc_nsobject_from_gvalue(handler_return);  /* FIXME: no-ns */
+    [invoc setArgument:&handlerReturn atIndex:3];  /* FIXME: no-ns */
 
-    [invoc invoke];
+    [invoc invoke];  /* FIXME: no-ns */
 
-    _glib_objc_gvalue_from_nsobject(return_accu, returnAccu, FALSE);
-    [invoc getReturnValue:&ret];
+    _gobject_objc_gvalue_from_nsobject(return_accu, returnAccu, FALSE);  /* FIXME: no-ns */
+    [invoc getReturnValue:&ret];  /* FIXME: no-ns */
 
-    [pool release];
+    [pool unref];  /* FIXME: no-ns */
 
     return ret;
 }
@@ -255,14 +256,14 @@ objc_closure_finalize(gpointer data,
 }
 
 static void
-glib_objc_gobject_set_property(GObject *obj,
+gobject_objc_gobject_set_property(GObject *obj,
                                guint property_id,
                                const GValue *value,
                                GParamSpec *pspec)
 {
-    GLIBObject *objCObj = g_object_get_qdata(obj, GLIB_OBJC_OBJECT_QUARK);
+    GOCObject *objCObj = g_object_get_qdata(obj, GOC_OBJECT_QUARK);
     id nsobject = nil;
-    NSAutoreleasePool *pool;
+    GOCAutoreleasePool *pool;
 
     g_assert(objCObj);
 
@@ -272,24 +273,24 @@ glib_objc_gobject_set_property(GObject *obj,
         return;
     }
 
-    nsobject = _glib_objc_nsobject_from_gvalue(value);
+    nsobject = _gobject_objc_nsobject_from_gvalue(value);
 
-    pool = [[NSAutoreleasePool alloc] init];
+    pool = [[GOCAutoreleasePool alloc] init];
     [objCObj performSelector:@selector(handleSetProperty:toValue:)
                   withObject:[NSString stringWithUTF8String:g_param_spec_get_name(pspec)]
                   withObject:nsobject];
-    [pool release];
+    [pool unref];
 }
 
 static void
-glib_objc_gobject_get_property(GObject *obj,
+gobject_objc_gobject_get_property(GObject *obj,
                                guint property_id,
                                GValue *value,
                                GParamSpec *pspec)
 {
-    GLIBObject *objCObj = g_object_get_qdata(obj, GLIB_OBJC_OBJECT_QUARK);
+    GOCObject *objCObj = g_object_get_qdata(obj, GOC_OBJECT_QUARK);
     id nsobject = nil;
-    NSAutoreleasePool *pool;
+    GOCAutoreleasePool *pool;
 
     g_assert(objCObj);
 
@@ -299,17 +300,17 @@ glib_objc_gobject_get_property(GObject *obj,
         return;
     }
 
-    pool = [[NSAutoreleasePool alloc] init];
+    pool = [[GOCAutoreleasePool alloc] init];
     nsobject = [objCObj performSelector:@selector(handleGetProperty:)
                              withObject:[NSString stringWithUTF8String:g_param_spec_get_name(pspec)]];
-    [pool release];
+    [pool unref];
 
-    _glib_objc_gvalue_from_nsobject(value, nsobject, NO);
+    _gobject_objc_gvalue_from_nsobject(value, nsobject, NO);
 }
 
 
 static void
-glib_objc_register_property(Class objCClass,
+gobject_objc_register_property(Class objCClass,
                             GParamSpec *param_spec)
 {
     GType gtype;
@@ -319,7 +320,7 @@ glib_objc_register_property(Class objCClass,
     gtype = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, objCClass));
     if(!gtype) {
         g_warning("%s: attempt to register property on class \"%s\", which is "
-                  "not derived from GLIBObject", PACKAGE,
+                  "not derived from GOCObject", PACKAGE,
                   [[objCClass description] UTF8String]);
         return;
     }
@@ -330,21 +331,21 @@ glib_objc_register_property(Class objCClass,
     g_assert(gobject_class);  /* i *think* this has to be valid here */
 
     property_id = GPOINTER_TO_UINT(g_type_get_qdata(gtype,
-                                                    GLIB_OBJC_PROP_ID_QUARK));
+                                                    GOC_PROP_ID_QUARK));
     if(!property_id) {
         /* first property registered; connect stuff */
-        gobject_class->set_property = glib_objc_gobject_set_property;
-        gobject_class->get_property = glib_objc_gobject_get_property;
+        gobject_class->set_property = gobject_objc_gobject_set_property;
+        gobject_class->get_property = gobject_objc_gobject_get_property;
     }
     ++property_id;
-    g_type_set_qdata(gtype, GLIB_OBJC_PROP_ID_QUARK,
+    g_type_set_qdata(gtype, GOC_PROP_ID_QUARK,
                      GUINT_TO_POINTER(property_id + 1));
 
     g_object_class_install_property(gobject_class, property_id, param_spec);
 }
 
 static void
-glib_objc_register_numeric_property(Class objCClass,
+gobject_objc_register_numeric_property(Class objCClass,
                                     NSString *propertyName,
                                     NSNumber *minValue,
                                     NSNumber *maxValue,
@@ -358,7 +359,7 @@ glib_objc_register_numeric_property(Class objCClass,
     _goc_return_if_fail(defaultValue);
 
     objc_sig = [defaultValue objCType];
-    val_gtype = _glib_objc_gtype_from_signature(objc_sig);
+    val_gtype = _gobject_objc_gtype_from_signature(objc_sig);
 
     switch(val_gtype) {
         case G_TYPE_CHAR:
@@ -454,17 +455,17 @@ glib_objc_register_numeric_property(Class objCClass,
             return;
     }
 
-    glib_objc_register_property(objCClass, param_spec);
+    gobject_objc_register_property(objCClass, param_spec);
 }
 
 
 
-@implementation GLIBObject
+@implementation GOCObject
 
-static GOnce __glib_objc_gobject_init_once = G_ONCE_INIT;
+static GOnce __gobject_objc_gobject_init_once = G_ONCE_INIT;
 
 static gpointer
-_glib_objc_gobject_init_once_func(gpointer data)
+_gobject_objc_gobject_init_once_func(gpointer data)
 {
     g_type_init();
 
@@ -476,14 +477,14 @@ _glib_objc_gobject_init_once_func(gpointer data)
 
 + (void)initialize
 {
-    g_once(&__glib_objc_gobject_init_once,
-           _glib_objc_gobject_init_once_func, self);
+    g_once(&__gobject_objc_gobject_init_once,
+           _gobject_objc_gobject_init_once_func, self);
 }
 
 + (void)registerWrappedGType:(GType)aGType
 {
     Class aClass = [self class];
-    Class curClass = g_type_get_qdata(aGType, GLIB_OBJC_TYPE_MAP_QUARK);
+    Class curClass = g_type_get_qdata(aGType, GOC_TYPE_MAP_QUARK);
     GType curGType = GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map, aClass));
     
     _goc_return_if_fail(aClass && aGType && aGType != G_TYPE_NONE
@@ -506,7 +507,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
         return;
     }
     
-    g_type_set_qdata(aGType, GLIB_OBJC_TYPE_MAP_QUARK, aClass);
+    g_type_set_qdata(aGType, GOC_TYPE_MAP_QUARK, aClass);
     g_hash_table_insert(__objc_class_map, aClass, GUINT_TO_POINTER(aGType));
 }
 
@@ -527,11 +528,11 @@ _glib_objc_gobject_init_once_func(gpointer data)
     SEL aSel;
     IMP aImp;
     
-    if((obj = g_object_get_qdata(gobject_ptr, GLIB_OBJC_OBJECT_QUARK)))
+    if((obj = g_object_get_qdata(gobject_ptr, GOC_OBJECT_QUARK)))
         return [[obj retain] autorelease];
     
     wrapperClass = g_type_get_qdata(G_OBJECT_TYPE(gobject_ptr),
-                                    GLIB_OBJC_TYPE_MAP_QUARK);
+                                    GOC_TYPE_MAP_QUARK);
     if(!wrapperClass) {
         g_critical("%s: GObject with type \"%s\" has not yet been wrapped",
                    PACKAGE, G_OBJECT_TYPE_NAME(gobject_ptr));
@@ -568,7 +569,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
 {
     GType wrapped_type;
 
-    wrapped_type = glib_objc_get_custom_type([self class]);
+    wrapped_type = gobject_objc_get_custom_type([self class]);
     g_assert(wrapped_type != G_TYPE_INVALID && wrapped_type != G_TYPE_NONE);
     
     if((self = [super init])) {
@@ -576,7 +577,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
         GParameter *params = NULL;
         
         if(properties) {
-            NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+            GOCAutoreleasePool *pool = [[GOCAutoreleasePool alloc] init];
             NSEnumerator *propNames;
             NSString *propName;
             GParameter *cur_param;
@@ -589,11 +590,11 @@ _glib_objc_gobject_init_once_func(gpointer data)
                 cur_param++)
             {
                 cur_param->name = [propName UTF8String];
-                _glib_objc_gvalue_from_nsobject(&cur_param->value,
+                _gobject_objc_gvalue_from_nsobject(&cur_param->value,
                                                [properties objectForKey:propName],
                                                YES);
             }
-            [pool release];
+            [pool unref];
         }
         
         _gobject_ptr = g_object_newv(wrapped_type, nparams, params);
@@ -606,11 +607,10 @@ _glib_objc_gobject_init_once_func(gpointer data)
         if(g_object_is_floating(_gobject_ptr))
             g_object_ref_sink(_gobject_ptr);
         
-        g_object_set_qdata(_gobject_ptr, GLIB_OBJC_OBJECT_QUARK, self);
+        g_object_set_qdata(_gobject_ptr, GOC_OBJECT_QUARK, self);
         
-        _closures = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
-                                          (GDestroyNotify)g_closure_unref);
-        _user_data = [[NSMutableDictionary alloc] init];
+        priv->closures = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
+                                               (GDestroyNotify)g_closure_unref);
     }
     
     return self;
@@ -621,13 +621,14 @@ _glib_objc_gobject_init_once_func(gpointer data)
     return [self initWithProperties:nil];
 }
 
-- (void)dealloc
+- (void)free
 {
-    g_hash_table_destroy(_closures);
+    g_hash_table_destroy(priv->closures);
+    g_slice_free(GOCObjectPriv, priv);
+
     g_object_unref(_gobject_ptr);
-    [_user_data release];
     
-    [super dealloc];
+    [super free];
 }
 
 + (void)registerProperty:(NSString *)propertyName
@@ -635,7 +636,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
                withFlags:(GParamFlags)flags
 {
     const char *prop_name = [propertyName UTF8String];
-    glib_objc_register_property([self class],
+    gobject_objc_register_property([self class],
                                 g_param_spec_boxed(prop_name,
                                                    prop_name,
                                                    prop_name,
@@ -649,7 +650,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
         withDefaultValue:(NSNumber *)defaultValue
                withFlags:(GParamFlags)flags
 {
-    glib_objc_register_numeric_property([self class], propertyName, minValue,
+    gobject_objc_register_numeric_property([self class], propertyName, minValue,
                                         maxValue, defaultValue, flags);
 }
 
@@ -657,7 +658,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
         withDefaultValue:(NSNumber *)defaultValue
                withFlags:(GParamFlags)flags
 {
-    glib_objc_register_numeric_property([self class], propertyName, NULL, NULL,
+    gobject_objc_register_numeric_property([self class], propertyName, NULL, NULL,
                                         defaultValue, flags);
 }
 
@@ -666,7 +667,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
 {
     GValue val = { 0, };
 
-    if(_glib_objc_gvalue_from_nsobject(&val, value, YES)) {
+    if(_gobject_objc_gvalue_from_nsobject(&val, value, YES)) {
         g_object_set_property(_gobject_ptr,
                               [propertyName UTF8String],
                               &val);
@@ -681,7 +682,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
     
     g_object_get_property(_gobject_ptr, [propertyName UTF8String], &value);
     if(G_VALUE_TYPE(&value)) {
-        nsobject = _glib_objc_nsobject_from_gvalue(&value);
+        nsobject = _gobject_objc_nsobject_from_gvalue(&value);
         g_value_unset(&value);
     }
     
@@ -691,7 +692,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
 - (void)setProperties:(NSDictionary *)properties
 {
     if(properties) {
-        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        GOCAutoreleasePool *pool = [[GOCAutoreleasePool alloc] init];
         NSEnumerator *propNames;
         NSString *propName;
         
@@ -699,21 +700,21 @@ _glib_objc_gobject_init_once_func(gpointer data)
         while((propName = [propNames nextObject])) {
             NSString *key = [properties objectForKey:propName];
             GValue value = { 0, };
-            if(_glib_objc_gvalue_from_nsobject(&value, key, YES)) {
+            if(_gobject_objc_gvalue_from_nsobject(&value, key, YES)) {
                 g_object_set_property(_gobject_ptr,
                                       [propName UTF8String],
                                       &value);
                 g_value_unset(&value);
             }
         }
-        [pool release];
+        [pool unref];
     }
 }
 
 - (NSDictionary *)getProperties:(NSArray *)propNames
 {
     NSMutableDictionary *properties = [NSMutableDictionary dictionaryWithCapacity:[propNames count]];
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    GOCAutoreleasePool *pool = [[GOCAutoreleasePool alloc] init];
     NSEnumerator *pNames = [propNames objectEnumerator];
     NSString *propName;
     
@@ -723,14 +724,14 @@ _glib_objc_gobject_init_once_func(gpointer data)
         
         g_object_get_property(_gobject_ptr, [propName UTF8String], &value);
         if(G_VALUE_TYPE(&value)) {
-            nsobject = _glib_objc_nsobject_from_gvalue(&value);
+            nsobject = _gobject_objc_nsobject_from_gvalue(&value);
             if(nsobject)
                 [properties setObject:nsobject forKey:propName];
             g_value_unset(&value);
         }
     }
     
-    [pool release];
+    [pool unref];
     
     return (NSDictionary *)properties;
 }
@@ -740,7 +741,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
            withSelector:(SEL)selector
            connectAfter:(BOOL)after
 {
-    NSAutoreleasePool *pool;
+    GOCAutoreleasePool *pool;
     guint signal_id = 0;
     GQuark detail = 0;
     NSMethodSignature *msig;
@@ -773,7 +774,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
         return 0;
     }
     
-    pool = [[NSAutoreleasePool alloc] init];
+    pool = [[GOCAutoreleasePool alloc] init];
     
     closure = (ObjCClosure *)g_closure_new_simple(sizeof(ObjCClosure), NULL);
     
@@ -785,7 +786,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
     [closure->invocation setSelector:selector];
     //[closure->invocation setArgument:self atIndex:2];
     
-    g_closure_set_marshal((GClosure *)closure, glib_objc_marshal_signal);
+    g_closure_set_marshal((GClosure *)closure, gobject_objc_marshal_signal);
     g_closure_add_finalize_notifier((GClosure *)closure, NULL,
                                     objc_closure_finalize);
     
@@ -794,7 +795,7 @@ _glib_objc_gobject_init_once_func(gpointer data)
                                                 after);
     g_hash_table_replace(_closures, GUINT_TO_POINTER(connect_id), closure);
     
-    [pool release];
+    [pool unref];
     
     return connect_id;
 }
@@ -961,7 +962,7 @@ disconnect_signals_ht_foreach(gpointer key,
     guint i, sig_id;
     
     if(defaultHandler) {
-        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        GOCAutoreleasePool *pool = [[GOCAutoreleasePool alloc] init];
         char signature[1024] = { 0 };
         guint i;
         NSMethodSignature *msig;
@@ -975,11 +976,11 @@ disconnect_signals_ht_foreach(gpointer key,
         occlosure->invocation = [[NSInvocation invocationWithMethodSignature:msig] retain];
         [occlosure->invocation setSelector:defaultHandler];
 
-        g_closure_set_marshal((GClosure *)occlosure, glib_objc_marshal_signal);
+        g_closure_set_marshal((GClosure *)occlosure, gobject_objc_marshal_signal);
         g_closure_add_finalize_notifier((GClosure *)occlosure, NULL,
                                         objc_closure_finalize);
 
-        [pool release];
+        [pool unref];
     }
 
     if(accumulator) {
@@ -998,9 +999,9 @@ disconnect_signals_ht_foreach(gpointer key,
                            GPOINTER_TO_UINT(g_hash_table_lookup(__objc_class_map,
                                                                 self)),
                            flags, (GClosure *)occlosure,
-                           accumulator ? glib_objc_accumulate_signal : NULL,
+                           accumulator ? gobject_objc_accumulate_signal : NULL,
                            accumulator ? accum_data : NULL,
-                           glib_objc_marshal_signal, G_TYPE_POINTER,
+                           gobject_objc_marshal_signal, G_TYPE_POINTER,
                            numArguments, param_types);
 
     g_free(param_types);
@@ -1060,7 +1061,7 @@ disconnect_signals_ht_foreach(gpointer key,
          forKey:(NSString *)key
 {
     g_object_set_data_full(_gobject_ptr, [key UTF8String], [data retain],
-                           (GDestroyNotify)glib_objc_nsobject_release);
+                           (GDestroyNotify)gobject_objc_nsobject_release);
 }
 
 - (id)getDataForKey:(NSString *)key
@@ -1070,7 +1071,7 @@ disconnect_signals_ht_foreach(gpointer key,
 
 #if 0
 
-- (void)weakRetain:(SEL)selector  /* - (void)weakNotify:(GLIBObject *)obj */
+- (void)weakRetain:(SEL)selector  /* - (void)weakNotify:(GOCObject *)obj */
           onObject:(id)object;
 
 - (void)weakRelease:(SEL)selector
