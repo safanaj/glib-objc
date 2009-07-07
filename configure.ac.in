@@ -94,6 +94,7 @@ AC_MSG_RESULT([$enable_debug])
 
 AC_OUTPUT([
 Makefile
+common/Makefile
 glib-objc/Makefile
 glib-objc/glib-objc-2.0.pc
 gobject-objc/Makefile
