@@ -17,30 +17,24 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#ifndef __GOC_AUTORELEASE_POOL_H__
+#define __GOC_AUTORELEASE_POOL_H__
 
-#ifndef __GOC_OBJECT_BASE_H__
-#define __GOC_OBJECT_BASE_H__
+#import <glib-objc/GOCObjectBase.h>
 
-#import <objc/Object.h>
+typedef struct _GOCAutoreleasePoolPriv  GOCAutoreleasePoolPriv;
 
-@protocol GOCObject
-
-- (id <GOCObject>)ref;
-- (void)unref;
-- (id <GOCObject>)autounref;
-- (unsigned int)refCount;
-
-@end
-
-@interface GOCObjectBase : Object <GOCObject>
+@interface GOCAutoreleasePool : GOCObjectBase
 {
   @private
-    volatile int ref_count;
+    GOCAutoreleasePoolPriv *priv;
 }
 
-- (id <GOCObject>)ref;
-- (void)unref;
++ (void)addObject:(id <GOCObject>)obj;
+- (void)addObject:(id <GOCObject>)obj;
+
+- (void)drain;
 
 @end
 
-#endif  /* __GOC_OBJECT_BASE_H__ */
+#endif  /* __GOC_AUTORELEASE_POOL_H__ */

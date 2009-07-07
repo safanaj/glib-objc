@@ -24,6 +24,7 @@
 #include <glib.h>
 
 #import "GOCObjectBase.h"
+#import "GOCAutoreleasePool.h"
 
 @implementation GOCObjectBase
 
@@ -48,6 +49,17 @@
         return;
 
     [self free];
+}
+
+- (id <GOCObject>)autounref
+{
+    [GOCAutoreleasePool addObject:self];
+    return self;
+}
+
+- (unsigned int)refCount
+{
+    return ref_count;
 }
 
 @end

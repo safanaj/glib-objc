@@ -5,6 +5,7 @@ glibobjcmaininclude_HEADERS = \
 	glib-objc.h
 glibobjcincludedir = $(glibobjcmainincludedir)/glib-objc
 glibobjcinclude_HEADERS = \
+	GOCAutoreleasePool.h \
 	GOCComparable.h \
 	GOCHashable.h \
 	GOCHashTable.h \
@@ -16,6 +17,7 @@ glibobjcinclude_HEADERS = \
 libglib_objc_2_0_la_SOURCES = \
 	$(glibobjcmaininclude_HEADERS) \
 	$(glibobjcinclude_HEADERS) \
+	GOCAutoreleasePool.m \
 	GOCHashTable.m \
 	GOCList.m \
 	GOCMain.m \
