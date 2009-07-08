@@ -17,32 +17,42 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __GLIB_OBJC_VALUE_H__
-#define __GLIB_OBJC_VALUE_H__
+#ifndef __GOC_VALUE_H__
+#define __GOC_VALUE_H__
 
 #if !defined(GLIB_OBJC_COMPILATION) && !defined(__IN_GLIB_OBJC_H)
-#error "Do not include GLIBValue.h directly, as this file may change or disappear in the future.  Include <glib-objc/glib-objc.h> instead."
+#error "Do not include GOCValue.h directly, as this file may change or disappear in the future.  Include <gobject-objc.h> instead."
 #endif
 
-#import <Foundation/Foundation.h>
+#import <glib-objc/GOCObjectBase.h>
 
-@interface GLIBValue : NSNumber
+typedef struct _GOCValuePriv  GOCValuePriv;
+
+@interface GOCValue : GOCObjectBase
 {
-@private
-    unsigned int _valueType;
+  @protected
+    int type;  /* subclasses must always use 0 for unknown/unset/invalid */
     
-    int _enumValue;
-    unsigned int _flagsValue;
+  @private
+    GOCValuePriv *gvpriv;
 }
 
-+ (id)valueWithEnum:(int)enumValue;
-+ (id)valueWithFlags:(unsigned int)flagsValue;
++ (id)valueWithVoid;
++ (id)valueWithObject:(id <GOCObject>)objectValue;
++ (id)valueWithPointer:(void *)pointerValue;
 
-- (id)initWithEnum:(int)enumValue;
-- (id)initWithFlags:(unsigned int)flagsValue;
+- (id)initWithVoid;
+- (id)initWithObject:(id <GOCObject>)objectValue;
+- (id)initWithPointer:(void *)pointerValue;
 
-- (int)enumValue;
-- (unsigned int)flagsValue;
+- (BOOL)holdsVoid;
+- (BOOL)holdsObject;
+- (BOOL)holdsPointer;
+
+- (id <GOCObject>)objectValue;
+- (void *)pointerValue;
+
+- (const char *)objCSignature;
 
 @end
 

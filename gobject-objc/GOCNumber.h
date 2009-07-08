@@ -20,31 +20,31 @@
 #ifndef __GOC_NUMBER_H__
 #define __GOC_NUMBER_H__
 
-#import <glib-objc/GOCObjectBase.h>
+#import <gobject-objc/GOCValue.h>
 
-@interface GOCNumber : GOCObjectBase
+typedef struct _GOCNumberPriv  GOCNumberPriv;
+
+@interface GOCNumber : GOCValue
 {
-  @protected
-    int type;
-
   @private
-    union
-    {
-        BOOL b;
-        unsigned char uc;
-        char c;
-        unsigned short us;
-        short s;
-        unsigned int ui;
-        int i;
-        unsigned long ul;
-        long l;
-        unsigned long long ull;
-        long long ll;
-        float f;
-        double d;
-    } data;
+    GOCNumberPriv *gnpriv;
 }
+
++ (id)numberWithBool:(BOOL)boolValue;
++ (id)numberWithUChar:(unsigned char)uCharValue;
++ (id)numberWithChar:(char)charValue;
++ (id)numberWithUShort:(unsigned short)uShortValue;
++ (id)numberWithShort:(short)shortValue;
++ (id)numberWithUInt:(unsigned int)uIntValue;
++ (id)numberWithInt:(int)intValue;
++ (id)numberWithULong:(unsigned long)uLongValue;
++ (id)numberWithLong:(long)longValue;
++ (id)numberWithUInt64:(unsigned long long)uInt64Value;
++ (id)numberWithInt64:(long long)int64Value;
++ (id)numberWithFloat:(float)floatValue;
++ (id)numberWithDouble:(double)doubleValue;
++ (id)numberWithEnum:(int)enumValue;
++ (id)numberWithFlags:(unsigned int)flagsValue;
 
 - (id)initWithBool:(BOOL)boolValue;
 - (id)initWithUChar:(unsigned char)uCharValue;
@@ -59,6 +59,24 @@
 - (id)initWithInt64:(long long)int64Value;
 - (id)initWithFloat:(float)floatValue;
 - (id)initWithDouble:(double)doubleValue;
+- (id)initWithEnum:(int)enumValue;
+- (id)initWithFlags:(unsigned int)flagsValue;
+
+- (BOOL)holdsBool;
+- (BOOL)holdsUChar;
+- (BOOL)holdsChar;
+- (BOOL)holdsUShort;
+- (BOOL)holdsShort;
+- (BOOL)holdsUInt;
+- (BOOL)holdsInt;
+- (BOOL)holdsULong;
+- (BOOL)holdsLong;
+- (BOOL)holdsUInt64;
+- (BOOL)holdsInt64;
+- (BOOL)holdsFloat;
+- (BOOL)holdsDouble;
+- (BOOL)holdsEnum;
+- (BOOL)holdsFlags;
 
 - (BOOL)boolValue;
 - (unsigned char)uCharValue;
@@ -73,6 +91,8 @@
 - (long long)int64Value;
 - (float)floatValue;
 - (double)doubleValue;
+- (int)enumValue;
+- (unsigned int)flagsValue;
 
 @end
 
