@@ -17,7 +17,6 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-
 #ifndef __GOC_OBJECT_BASE_H__
 #define __GOC_OBJECT_BASE_H__
 
@@ -38,9 +37,36 @@
     volatile int ref_count;
 }
 
-- (id <GOCObject>)ref;
-- (void)unref;
+@end
+
+#if __OBJC2__
+
+/* ObjC 2.0 doesn't have these methods in Object because apparently Apple decided
+ * everyone in the world should use NSObject */
+
+@interface Object (ObjC1Compat)
+
+- (id)init;
+
++ (id)new;
++ (id)alloc;
+- (void)free;
+
+- (Class)class;
+- (Class)superClass;
+- (const char *)name;
+
+- (BOOL)isKindOfClass:(Class)aClass;
+- (BOOL)isMemberOfClass:(Class)aClass;
+
+- (BOOL)respondsTo:(SEL)aSel;
+- (BOOL)conformsTo:(Protocol *)aProtocol;
+
++ (IMP)instanceMethodFor:(SEL)aSel;
+- (IMP)methodFor:(SEL)aSel;
 
 @end
+
+#endif  /* __OBJC2__ */
 
 #endif  /* __GOC_OBJECT_BASE_H__ */
