@@ -26,6 +26,8 @@
 #include <glib.h>
 
 #import "GOCNumber.h"
+#import "GOCValue+GOCPrivate.h"
+#import "GOCNumber+GOCPrivate.h"
 
 @implementation GOCNumber
 
@@ -516,6 +518,49 @@ struct _GOCNumberPriv
 {
     g_slice_free(GOCNumberPriv, gnpriv);
     [super free];
+}
+
+@end
+
+
+@implementation GOCNumber (GOCPrivate)
+
+- (const void *)storage
+{
+    switch(type) {
+        case GN_TYPE_BOOL:
+            return &gnpriv->data.b;
+        case GN_TYPE_UCHAR:
+            return &gnpriv->data.uc;
+        case GN_TYPE_CHAR:
+            return &gnpriv->data.c;
+        case GN_TYPE_USHORT:
+            return &gnpriv->data.us;
+        case GN_TYPE_SHORT:
+            return &gnpriv->data.s;
+        case GN_TYPE_UINT:
+            return &gnpriv->data.ui;
+        case GN_TYPE_INT:
+            return &gnpriv->data.i;
+        case GN_TYPE_ULONG:
+            return &gnpriv->data.ul;
+        case GN_TYPE_LONG:
+            return &gnpriv->data.l;
+        case GN_TYPE_UINT64:
+            return &gnpriv->data.ull;
+        case GN_TYPE_INT64:
+            return &gnpriv->data.ll;
+        case GN_TYPE_FLOAT:
+            return &gnpriv->data.f;
+        case GN_TYPE_DOUBLE:
+            return &gnpriv->data.d;
+        case GN_TYPE_ENUM:
+            return &gnpriv->data.i;
+        case GN_TYPE_FLAGS:
+            return &gnpriv->data.ui;
+    }
+
+    return [super storage];
 }
 
 @end

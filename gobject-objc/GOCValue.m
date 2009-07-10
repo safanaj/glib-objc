@@ -24,6 +24,7 @@
 #include <glib.h>
 
 #import "GOCValue.h"
+#import "GOCValue+GOCPrivate.h"
 
 @implementation GOCValue
 
@@ -145,6 +146,25 @@ struct _GOCValuePriv
 {
     g_slice_free(GOCValuePriv, gvpriv);
     [super free];
+}
+
+@end
+
+
+@implementation GOCValue (GOCPrivate)
+
+- (const void *)storage
+{
+    switch(type) {
+        case GV_TYPE_VOID:
+            return NULL;
+        case GV_TYPE_OBJECT:
+            return &gvpriv->data.o;
+        case GV_TYPE_POINTER:
+            return &gvpriv->data.p;
+    }
+
+    return NULL;
 }
 
 @end
