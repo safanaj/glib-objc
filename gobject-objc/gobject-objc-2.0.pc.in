@@ -3,11 +3,11 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-libgobject_objc_api_version=@GLIB_OBJC_API_VERSION@
+api_version=@GOC_API_VERSION@
 
 Name: GObject-ObjC
 Description: Objective-C bindings for GObject
 Version: @VERSION@
-Requires: gobject-2.0
-Libs: -lgobject-objc-${libgobject_objc_api_version} @FOUNDATION_LIBS@
-Cflags: @FOUNDATION_CFLAGS@ -I${includedir}/glib-objc-${libgobject_objc_api_version}
+Requires: gobject-2.0 glib-objc-2.0
+Libs: -lgobject-objc-${api_version}
+Cflags: -I${includedir}/glib-objc-${api_version}

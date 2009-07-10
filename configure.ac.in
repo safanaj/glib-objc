@@ -6,17 +6,17 @@ dnl Copyright (c) 2008 Brian Tarricone <bjt23@cornell.edu>
 dnl
 
 dnl version info
-m4_define([glib_objc_verinfo], [0:0:0])
-m4_define([glib_objc_api_version], [2.0])
-m4_define([go_version_major], [0])
-m4_define([go_version_minor], [1])
-m4_define([go_version_micro], [0])
-m4_define([go_version_build], [@REVISION@])
-m4_define([go_version_tag], [git])
-m4_define([go_version], [go_version_major().go_version_minor().go_version_micro()ifelse(go_version_tag(), [git], [go_version_tag()-go_version_build()], [go_version_tag()])])
+m4_define([goc_verinfo], [0:0:0])
+m4_define([goc_api_version], [2.0])
+m4_define([goc_version_major], [0])
+m4_define([goc_version_minor], [1])
+m4_define([goc_version_micro], [0])
+m4_define([goc_version_build], [@REVISION@])
+m4_define([goc_version_tag], [git])
+m4_define([goc_version], [goc_version_major().goc_version_minor().goc_version_micro()ifelse(goc_version_tag(), [git], [goc_version_tag()-goc_version_build()], [goc_version_tag()])])
 
 dnl init autoconf
-AC_INIT([glib-objc], [go_version], [bjt23@cornell.edu])
+AC_INIT([glib-objc], [goc_version], [brian@tarricone.org])
 AC_PREREQ([2.59])
 
 dnl init automake
@@ -38,14 +38,15 @@ AC_PROG_LIBTOOL
 
 dnl check for standard header files
 AC_HEADER_STDC
+AC_CHECK_HEADERS([objc/objc-api.h objc/objc-runtime.h])
 
 dnl version information
-GO_VERSION=go_version
-GLIB_OBJC_VERINFO=glib_objc_verinfo
-GLIB_OBJC_API_VERSION=glib_objc_api_version
+GOC_VERSION=goc_version
+GOC_VERINFO=goc_verinfo
+GOC_API_VERSION=goc_api_version
 AC_SUBST(GO_VERSION)
-AC_SUBST(GLIB_OBJC_VERINFO)
-AC_SUBST(GLIB_OBJC_API_VERSION)
+AC_SUBST(GOC_VERINFO)
+AC_SUBST(GOC_API_VERSION)
 
 dnl required
 

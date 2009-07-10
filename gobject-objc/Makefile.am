@@ -1,6 +1,6 @@
 lib_LTLIBRARIES = libgobject-objc-2.0.la
 
-glibobjcmainincludedir = $(includedir)/glib-objc-$(GLIB_OBJC_API_VERSION)
+glibobjcmainincludedir = $(includedir)/glib-objc-$(GOC_API_VERSION)
 glibobjcmaininclude_HEADERS = \
 	gobject-objc.h
 gobjectobjcincludedir = $(glibobjcmainincludedir)/gobject-objc
@@ -27,13 +27,13 @@ libgobject_objc_2_0_la_CFLAGS = \
 libgobject_objc_2_0_la_OBJCFLAGS = $(libgobject_objc_2_0_la_CFLAGS)
 
 libgobject_objc_2_0_la_LDFLAGS = \
-	-version-info $(GLIB_OBJC_VERINFO)
+	-version-info $(GOC_VERINFO)
 
 libgobject_objc_2_0_la_LIBADD = \
 	$(GOBJECT_LIBS)
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_in_files = gobject-objc-$(GLIB_OBJC_API_VERSION).pc.in
+pkgconfig_in_files = gobject-objc-$(GOC_API_VERSION).pc.in
 pkgconfig_DATA = $(pkgconfig_in_files:.in=)
 
 DISTCLEANFILES = \
