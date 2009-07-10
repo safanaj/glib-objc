@@ -50,23 +50,89 @@ AC_SUBST(GOC_API_VERSION)
 
 dnl required
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.12.0], , [AC_MSG_ERROR([
-*** Glib version 2.12.0 or greater is required.
-*** YOu can download it from http://gtk.org/
-])])
-AC_MSG_CHECKING([GLIB_CFLAGS])
-AC_MSG_RESULT([$GLIB_CFLAGS])
-AC_MSG_CHECKING([GLIB_LIBS])
-AC_MSG_RESULT([$GLIB_LIBS])
+#
+# BT_CHECK_PACKAGE(VAR, MODULE, MIN_VERSION, [WEBSITE])
+#
+AC_DEFUN([BT_CHECK_PACKAGE],
+[
+    PKG_CHECK_MODULES([$1], [$2 >= $3], ,
+    [
+        echo '***'" $2 version $3 is required."
+        if test "x$4" != "x"; then
+            echo '***'" You can download it from $4"
+        fi
+        exit 1
+    ])
+    AC_MSG_CHECKING([$1_CFLAGS])
+    AC_MSG_RESULT([$$1_CFLAGS])
+    AC_MSG_CHECKING([$1_LIBS])
+    AC_MSG_RESULT([$$1_LIBS])
+])
 
-PKG_CHECK_MODULES([GOBJECT], [gobject-2.0 >= 2.12.0], , [AC_MSG_ERROR([
-*** GObject (a part of the Glib library) version 2.12.0 or greater is required.
-*** You can download it from http://gtk.org/
-])])
-AC_MSG_CHECKING([GOBJECT_CFLAGS])
-AC_MSG_RESULT([$GOBJECT_CFLAGS])
-AC_MSG_CHECKING([GOBJECT_LIBS])
-AC_MSG_RESULT([$GOBJECT_LIBS])
+BT_CHECK_PACKAGE([GLIB], [glib-2.0], [2.12.0], [http://gtk.org/])
+BT_CHECK_PACKAGE([GOBJECT], [gobject-2.0], [2.12.0], [http://gtk.org/])
+BT_CHECK_PACKAGE([LIBFFI], [libffi], [3.0.0], [http://sourceware.org/libffi])
+
+dnl figure out some semi-custom types
+
+# BT_CHECK_OBJC_SIG(VAR, TYPE_MACRO, FRIENDLY_NAME)
+AC_DEFUN([BT_CHECK_OBJC_SIG],
+[
+    AC_LANG_PUSH([Objective C])
+
+    AC_MSG_CHECKING([the type signature of $3])
+    AC_RUN_IFELSE(
+    [AC_LANG_PROGRAM(
+      [
+        #include <stdio.h>
+        #if defined(HAVE_OBJC_OBJC_RUNTIME_H)
+        # include <objc/objc-runtime.h>
+        #elif defined(HAVE_OBJC_OBJC_API_H)
+        # include <objc/objc-api.h>
+        #endif
+      ],
+      [
+        FILE *fp = fopen("bt-conftest.out", "w");
+        if(!fp)
+            return 1;
+        fprintf(fp, "%c\n", $2);
+        fclose(fp);
+      ])
+    ], ,
+    [
+        AC_MSG_RESULT([failed])
+        echo <<__EOERR
+*** Failed to figure out the type signature of $3.  Your Objective C runtime
+*** may not be supported.
+__EOERR
+        rm -f bt-conftest.out
+        exit 1
+    ])
+
+    AC_LANG_POP()
+
+    val=`cat bt-conftest.out`
+    rm -f bt-conftest.out
+    if test -z "$val"; then
+        AC_MSG_RESULT([failed])
+        echo <<__EOERR
+*** Type signature of $3 appears to be empty.  Your Objective C runtime may
+*** not be supported.
+__EOERR
+        exit 1
+    fi
+
+    AC_MSG_RESULT([$val])
+    $1="$val"
+])
+
+BT_CHECK_OBJC_SIG([GOC_ARGTYPE_BOOL], [_C_BOOL], [BOOL])
+BT_CHECK_OBJC_SIG([GOC_ARGTYPE_FLAGS], [_C_BFLD], [bitfields/flags])
+# this next one shouldn't be hard-coded.  instead should make sure there are
+# no conflicts with the system signatures
+AC_MSG_CHECKING([the type signature of enums])
+GOC_ARGTYPE_ENUM='e'
+AC_MSG_RESULT([$GOC_ARGTYPE_ENUM])
 
 dnl check for debugging support
 AC_ARG_ENABLE([debug],
@@ -92,6 +158,38 @@ if test "x$enable_debug" != "xno"; then
     CXXFLAGS="$CXXFLAGS $DEBUG_CFLAGS"
 fi
 AC_MSG_RESULT([$enable_debug])
+
+AC_CONFIG_COMMANDS([glib-objc-config.h],
+[
+    outfile=glib-objc-config.h-tmp
+    cat > $outfile <<__EOF
+/*
+ * glib-objc-config.h
+ *
+ * This is a generated file.  Please modifiy 'configure.ac.in'.
+ */
+
+#ifndef __GLIB_OBJC_CONFIG_H__
+#define __GLIB_OBJC_CONFIG_H__
+
+#define __GOC_ARGTYPE_BOOL         "$argtype_bool"
+#define __GOC_ARGTYPE_FLAGS        "$argtype_flags"
+#define __GOC_ARGTYPE_ENUM         "$argtype_enum"
+
+#endif  /* __GLIB_OBJC_CONFIG_H__ */
+__EOF
+    if cmp -s $outfile glib-objc-config.h; then
+        AC_MSG_NOTICE([glib-objc-config.h is unchanged])
+        rm -f $outfile
+    else
+        mv $outfile glib-objc-config.h
+    fi
+],
+[
+    argtype_bool=$GOC_ARGTYPE_BOOL
+    argtype_flags=$GOC_ARGTYPE_FLAGS
+    argtype_enum=$GOC_ARGTYPE_ENUM
+])
 
 AC_OUTPUT([
 Makefile

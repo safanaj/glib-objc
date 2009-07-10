@@ -23,8 +23,10 @@ config.sub
 configure
 configure.ac
 depcomp
+glib-objc-config.h
 install-sh
 libtool
 ltmain.sh
 missing
+stamp-goc-h
 stamp-h1

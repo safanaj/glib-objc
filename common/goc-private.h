@@ -58,4 +58,28 @@
     return (val); \
 } G_STMT_END
 
+
+#define _goc_collect_varargs(arrayp, countp, first_param, var_args, do_strdup)  G_STMT_START{ \
+    void *__cur; \
+    int __max_params = 6; \
+    \
+    *(countp) = 0; \
+    *(arrayp) = g_malloc(sizeof(void *) * (__max_params + 1)); \
+    __cur = (void *)first_param; \
+    while(__cur) { \
+        if(*(countp) == __max_params) { \
+            __max_params *= 2; \
+            *(arrayp) = g_realloc(*(arrayp), sizeof(void *) * (__max_params + 1)); \
+        } \
+        \
+        if(do_strdup) \
+            (*(arrayp))[(*(countp))++] = (void *)g_strdup(__cur); \
+        else \
+            (*(arrayp))[(*(countp))++] = __cur; \
+        __cur = va_arg(var_args, void *); \
+    } \
+    (*(arrayp))[*(countp)] = NULL; \
+}G_STMT_END
+    
+
 #endif  /* __GOC_PRIVATE_H__ */

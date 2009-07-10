@@ -6,6 +6,7 @@ glibobjcmaininclude_HEADERS = \
 gobjectobjcincludedir = $(glibobjcmainincludedir)/gobject-objc
 gobjectobjcinclude_HEADERS = \
 	GOCBoxedValue.h \
+	GOCClosure.h \
 	GOCObject.h \
 	GOCNumber.h \
 	GOCValue.h
@@ -14,6 +15,7 @@ libgobject_objc_2_0_la_SOURCES = \
 	$(gobjectobjcmaininclude_HEADERS) \
 	$(gobjectobjcinclude_HEADERS) \
 	GOCBoxedValue.m \
+	GOCClosure.m \
 	GOCObject.m \
 	GOCNumber.m \
 	GOCValue.m \
@@ -22,7 +24,8 @@ libgobject_objc_2_0_la_SOURCES = \
 
 libgobject_objc_2_0_la_CFLAGS = \
 	-DGLIB_OBJC_COMPILATION \
-	$(GOBJECT_CFLAGS)
+	$(GOBJECT_CFLAGS) \
+	$(LIBFFI_CFLAGS)
 
 libgobject_objc_2_0_la_OBJCFLAGS = $(libgobject_objc_2_0_la_CFLAGS)
 
@@ -30,7 +33,8 @@ libgobject_objc_2_0_la_LDFLAGS = \
 	-version-info $(GOC_VERINFO)
 
 libgobject_objc_2_0_la_LIBADD = \
-	$(GOBJECT_LIBS)
+	$(GOBJECT_LIBS) \
+	$(LIBFFI_LIBS)
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_in_files = gobject-objc-$(GOC_API_VERSION).pc.in
