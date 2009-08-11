@@ -134,6 +134,40 @@ AC_MSG_CHECKING([the type signature of enums])
 GOC_ARGTYPE_ENUM='e'
 AC_MSG_RESULT([$GOC_ARGTYPE_ENUM])
 
+dnl figure out if we can use our own constant string class
+AC_MSG_CHECKING([if $CC supports -fconstant-string-class])
+saved_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS -fconstant-string-class=TestConstantString"
+AC_LANG_PUSH([Objective C])
+AC_RUN_IFELSE(
+[AC_LANG_PROGRAM(
+  [
+    #import <objc/Object.h>
+
+    @interface TestConstantString : Object
+    {
+        const char *c_string;
+        unsigned int length;
+    }
+    @end
+  ],
+  [
+    TestConstantString *conststr = @"this is a test";
+  ])],
+  [
+    GOC_CONSTANT_STRING_CLASS=GOCConstantString
+    GOC_CONSTANT_STRING_PCFILE_CFLAGS="-fconstant-string-class=$GOC_CONSTANT_STRING_CLASS"
+    AC_MSG_RESULT([yes])
+  ],
+  [
+    GOC_CONSTANT_STRING_CLASS=NXConstantString
+    GOC_CONSTANT_STRING_CPPFLAGS="-DGOCConstantString=NXConstantString"
+    AC_MSG_RESULT([no])
+  ])
+CPPFLAGS="$saved_CPPFLAGS $GOC_CONSTANT_STRING_CPPFLAGS"
+AC_SUBST(GOC_CONSTANT_STRING_PCFILE_CFLAGS)
+AC_SUBST(GOC_CONSTANT_STRING_CLASS)
+
 dnl check for debugging support
 AC_ARG_ENABLE([debug],
               [AC_HELP_STRING([--enable-debug=[full|yes|no]],
@@ -176,6 +210,8 @@ AC_CONFIG_COMMANDS([glib-objc-config.h],
 #define __GOC_ARGTYPE_FLAGS        "$argtype_flags"
 #define __GOC_ARGTYPE_ENUM         "$argtype_enum"
 
+#define GOC_CONSTANT_STRING_CLASS  $const_str_class
+
 #endif  /* __GLIB_OBJC_CONFIG_H__ */
 __EOF
     if cmp -s $outfile glib-objc-config.h; then
@@ -189,6 +225,7 @@ __EOF
     argtype_bool=$GOC_ARGTYPE_BOOL
     argtype_flags=$GOC_ARGTYPE_FLAGS
     argtype_enum=$GOC_ARGTYPE_ENUM
+    const_str_class=$GOC_CONSTANT_STRING_CLASS
 ])
 
 AC_OUTPUT([

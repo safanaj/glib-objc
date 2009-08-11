@@ -26,6 +26,7 @@
 #import "GOCObject.h"
 #import "GOCValue.h"
 #import "GOCBoxedValue.h"
+#import "GOCClosure.h"
 #include "gobject-objc-private.h"
 #include "goc-private.h"
 
@@ -45,7 +46,8 @@ typedef struct
     guint signal_id;
     GQuark detail;
     BOOL after;
-    NSInvocation *invocation;  /* FIXME: no-ns */
+
+    GOCClosure *closure;
 } ObjCClosure;
 
 typedef struct
@@ -178,41 +180,41 @@ gobject_objc_marshal_signal(GClosure *closure,
 {
     GOCAutoreleasePool *pool = [[GOCAutoreleasePool alloc] init];
     ObjCClosure *occlosure = (ObjCClosure *)closure;
-    NSInvocation *invoc = occlosure->invocation;  /* FIXME: no-ns */
-    id param;
+    GOCClosure *gclo = occlosure->closure;
+    GOCValue **argv;
+    GOCValue *retval;
     int i;
     gboolean clear_target = FALSE;
+
+    argv = g_new0(GOCValue *, n_param_values + 1);
     
     for(i = 0; i < n_param_values; ++i) {
-        param = _gobject_objc_nsobject_from_gvalue(&param_values[i]);  /* FIXME: no-ns */
-        if(!param) {
+        argv[i] = _gobject_objc_gocvalue_from_gvalue(&param_values[i]);
+        if(!argv[i]) {
             g_critical("%s: couldn't marshal value of type \"%s\"", PACKAGE,
                        G_VALUE_TYPE_NAME(&param_values[i]));
         }
-        
-        [invoc setArgument:param atIndex:i+2];  /* FIXME: no-ns */
     }
 
-    if(![invoc target]) {
+    /* FIXME: this needs rethinking -- why do we want 'self' in the arglist at all? */
+    if(![gclo target]) {
         /* this is to handle class closures */
         id target = nil;
-        [invoc getArgument:&target atIndex:2];  /* FIXME: no-ns */
-        [invoc setTarget:target];  /* FIXME: no-ns */
+        [gclo setTarget:argv[0]];
         clear_target = TRUE;
     }
-    
-    [invoc invoke];  /* FIXME: no-ns */
+
+    retval = [gclo invokeWithInvocationHint:invocation_hint andArgV:argv];
     
     if(G_VALUE_TYPE(return_value)) {
-        id ret = nil;
-        [invoc getReturnValue:(void *)&ret];  /* FIXME: no-ns */
-        _gobject_objc_gvalue_from_nsobject(return_value, ret, FALSE);  /* FIXME: no-ns */
+        /* FIXME: i don't recall what the bool value is supposed to do */
+        _gobject_objc_gvalue_from_gocvalue(return_value, ret, FALSE);
     }
 
     if(clear_target)
-        [invoc setTarget:nil];  /* FIXME: no-ns */
+        [gclo setTarget:nil];
     
-    [pool unref];  /* FIXME: no-ns */
+    [pool unref];
 }
 
 static gboolean
@@ -242,7 +244,7 @@ gobject_objc_accumulate_signal(GSignalInvocationHint *ihint,
     _gobject_objc_gvalue_from_nsobject(return_accu, returnAccu, FALSE);  /* FIXME: no-ns */
     [invoc getReturnValue:&ret];  /* FIXME: no-ns */
 
-    [pool unref];  /* FIXME: no-ns */
+    [pool unref];
 
     return ret;
 }
@@ -252,7 +254,7 @@ objc_closure_finalize(gpointer data,
                       GClosure *closure)
 {
     ObjCClosure *occlosure = (ObjCClosure *)closure;
-    [occlosure->invocation release];
+    [occlosure->closure unref];
 }
 
 static void
@@ -273,7 +275,7 @@ gobject_objc_gobject_set_property(GObject *obj,
         return;
     }
 
-    nsobject = _gobject_objc_nsobject_from_gvalue(value);
+    nsobject = _gobject_objc_nsobject_from_gvalue(value);  /* FIXME: no-ns */
 
     pool = [[GOCAutoreleasePool alloc] init];
     [objCObj performSelector:@selector(handleSetProperty:toValue:)
@@ -305,7 +307,7 @@ gobject_objc_gobject_get_property(GObject *obj,
                              withObject:[NSString stringWithUTF8String:g_param_spec_get_name(pspec)]];
     [pool unref];
 
-    _gobject_objc_gvalue_from_nsobject(value, nsobject, NO);
+    _gobject_objc_gvalue_from_nsobject(value, nsobject, NO);  /* FIXME: no-ns */
 }
 
 
