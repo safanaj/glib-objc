@@ -1,8 +1,7 @@
 SUBDIRS = \
 	common \
-	glib-objc \
-	gobject-objc \
-    tests
+	glib-objc tests
+
 
 archdepdir = $(libdir)/glib-objc-$(GLIB_OBJC_API_VERSION)/include
 archdep_HEADERS = \

@@ -12,6 +12,7 @@ glibobjcinclude_HEADERS = \
 	GOCIterable.h \
 	GOCList.h \
 	GOCMain.h \
+	GOCVariant.h \
 	GOCObjectBase.h
 
 libglib_objc_2_0_la_SOURCES = \
@@ -21,6 +22,7 @@ libglib_objc_2_0_la_SOURCES = \
 	GOCHashTable.m \
 	GOCList.m \
 	GOCMain.m \
+	GOCVariant.m \
 	GOCObjectBase.m
 
 libglib_objc_2_0_la_CFLAGS = \
@@ -31,10 +33,10 @@ libglib_objc_2_0_la_CFLAGS = \
 libglib_objc_2_0_la_OBJCFLAGS = $(libglib_objc_2_0_la_CFLAGS)
 
 libglib_objc_2_0_la_LDFLAGS = \
-	-version-info $(GOC_VERINFO)
+	-version-info $(GOC_VERINFO) -fgnu-runtime
 
 libglib_objc_2_0_la_LIBADD = \
-	$(GLIB_LIBS)
+	$(GLIB_LIBS) -lobjc
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_in_files = glib-objc-$(GOC_API_VERSION).pc.in

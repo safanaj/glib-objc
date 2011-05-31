@@ -21,7 +21,7 @@
 #include <config.h>
 #endif
 
-#import "GOString.h"
+#import "GOCString.h"
 
 struct _GOCStringPriv
 {

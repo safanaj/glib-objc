@@ -25,6 +25,9 @@
 
 #import "GOCHashTable.h"
 
+@implementation GOCHashTableEntry
+@end
+
 @implementation GOCHashTableIter
 
 - (id)initWithGHashTable:(GHashTable *)ght

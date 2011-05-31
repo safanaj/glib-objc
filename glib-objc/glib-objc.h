@@ -28,7 +28,9 @@
 #import <glib-objc/GOCIterable.h>
 #import <glib-objc/GOCList.h>
 #import <glib-objc/GOCMain.h>
+#import <glib-objc/GOCVariant.h>
 #import <glib-objc/GOCObjectBase.h>
+#import <glib-objc/GOCAutoreleasePool.h>
 
 #undef __IN_GLIB_OBJC_H
 
